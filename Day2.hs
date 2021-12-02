@@ -15,6 +15,14 @@ main = do
          let (command:value) = words line
           in (command, toInt $ head value)) $
     lines input
+  putStrLn $
+    show $
+    ex2 (0, 0, 0) $
+    map
+      (\line ->
+         let (command:value) = words line
+          in (command, toInt $ head value)) $
+    lines input
   return ()
   where
     toInt xs = read xs :: Int
@@ -25,3 +33,10 @@ ex1 (xPos, yPos) ((command, value):xs)
   | command == "forward" = ex1 (xPos + value, yPos) xs
   | command == "up" = ex1 (xPos, yPos - value) xs
   | otherwise = ex1 (xPos, yPos + value) xs
+
+ex2 :: (Int, Int, Int) -> [(String, Int)] -> Int
+ex2 (xPos, yPos, aim) [] = xPos * yPos
+ex2 (xPos, yPos, aim) ((command, value):xs)
+  | command == "forward" = ex2 (xPos + value, yPos + aim * value, aim) xs
+  | command == "up" = ex2 (xPos, yPos, aim - value) xs
+  | otherwise = ex2 (xPos, yPos, aim + value) xs
