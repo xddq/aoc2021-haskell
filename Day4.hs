@@ -33,9 +33,8 @@ main = do
         map toInt . map (trimWith isPunctuation) $
         splitOn (not . isPunctuation) numbersRow
   let boards = createBoards $ drop 1 $ rows
-  print $ drop 1 $ rows
   -- print boards
-  -- print $ ex1 boards numbers
+  print $ ex1 boards numbers
   return ()
 
 toInt :: String -> Int
@@ -68,7 +67,7 @@ markBoard number board =
          row)
     board
 
-makeCell :: Int -> (Int, Mark)
+makeCell :: Int -> Cell
 makeCell val = (val, False)
 
 isMarked :: Cell -> Bool
@@ -91,7 +90,6 @@ sumOfBoard board = sum $ map (\row -> sum $ map (\(val, _) -> val) row) board
 -- sumOfBoard works.
 -- unmarkedNumbers works.
 -- numbers works.
--- TODO: continue debugging.. :O
 -- finds winning board and calculates the result
 ex1 :: [Board] -> [Int] -> Int
 ex1 boards (x:numbers) =
@@ -100,7 +98,7 @@ ex1 boards (x:numbers) =
       winningBoard = head winningBoards
    in if null winningBoards
         then ex1 markedBoards numbers
-        else sumOfBoard $ unmarkedNumbers $ head winningBoards
+        else x * (sumOfBoard $ unmarkedNumbers $ head winningBoards)
 
 -- testboard
 testBoard :: Board
