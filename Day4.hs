@@ -25,20 +25,19 @@ import Data.List
 main = do
   input <- readFile "inputDay4"
   -- gets all rows, filters empty lines
-  let rows = filter (not . (== "")) $ lines input
+  let rows = filter (/= "") $ lines input
   -- gets the numbers we will draw
   let numbersRow = head rows
   -- converts them to list of int values
   let numbers =
-        map toInt . map (trimWith isPunctuation) $
-        splitOn isPunctuation numbersRow
-  let boards = createBoards $ drop 1 $ rows
-  -- print numbers
+        map (toInt . trimWith isPunctuation) $ splitOn isPunctuation numbersRow
+  let boardSize = 5
+  let boards = createBoards (drop 1 rows) boardSize
   print $ ex1 boards numbers
   return ()
 
 toInt :: String -> Int
-toInt val = read val
+toInt = read
 
 type Mark = Bool
 
@@ -48,14 +47,23 @@ type Row = [Cell]
 
 type Board = [Row]
 
+-- Takes a predicate and a list. Splits given list as soon as the predicate
+-- matches. For each split a a new list will be added to our list of lists.
+splitOn :: (a -> Bool) -> [a] -> [[a]]
 splitOn pred = groupBy (\_ next -> (not . pred) next)
 
+-- removes space from left and right of given string
+trim :: String -> String
 trim = dropWhileEnd isSpace . dropWhile isSpace
 
+-- removes items from left and right of given list based on given predicate.
+trimWith :: (a -> Bool) -> [a] -> [a]
 trimWith pred = dropWhileEnd pred . dropWhile pred
 
+-- goes through given bord and marks Cell with given if the value matches the
+-- given int.
 markBoard :: Int -> Board -> Board
-markBoard number board =
+markBoard number =
   map
     (\row ->
        map
@@ -64,7 +72,6 @@ markBoard number board =
               then (val, True)
               else (val, mark))
          row)
-    board
 
 makeCell :: Int -> Cell
 makeCell val = (val, False)
@@ -74,17 +81,27 @@ isMarked (_, marked) = marked
 
 makeRow :: [Char] -> Row
 makeRow =
-  map makeCell .
-  map toInt . map trim . filter (not . (all isSpace)) . splitOn isSpace
+  map (makeCell . toInt . trim) . filter (not . all isSpace) . splitOn isSpace
   where
     toInt x = read x :: Int
 
+unmarkedNumbers' :: Board -> Board
+unmarkedNumbers' board = map (\row -> filter (not . isMarked) row) board
+
+-- NOTE: Hlint likes this one more than the one above. I think in the one above
+-- it is more clear what actually happens. TODO: ask for opinion.
 unmarkedNumbers :: Board -> Board
-unmarkedNumbers board = map (\row -> filter (not . isMarked) row) board
+unmarkedNumbers = map (filter (not . isMarked))
 
+sumOfBoard' :: Board -> Int
+sumOfBoard' board = sum $ map (\row -> sum $ map (\(val, _) -> val) row) board
+
+-- NOTE: Hlint likes this one more than the one above. I think in the one above
+-- it is more clear what actually happens. TODO: ask for opinion.
 sumOfBoard :: Board -> Int
-sumOfBoard board = sum $ map (\row -> sum $ map (\(val, _) -> val) row) board
+sumOfBoard board = sum $ map (sum . map fst) board
 
+--
 -- finds winning board and calculates the result
 ex1 :: [Board] -> [Int] -> Int
 ex1 boards (x:numbers) =
@@ -93,13 +110,15 @@ ex1 boards (x:numbers) =
       winningBoard = head winningBoards
    in if null winningBoards
         then ex1 markedBoards numbers
-        else x * (sumOfBoard $ unmarkedNumbers $ head winningBoards)
+        else x * sumOfBoard (unmarkedNumbers $ head winningBoards)
 
-createBoards :: [String] -> [Board]
-createBoards (r1:r2:r3:r4:r5:rows) =
-  let board = map makeRow (r1 : r2 : r3 : r4 : r5 : [])
-   in [board] ++ createBoards rows
-createBoards _ = []
+createBoards :: [String] -> Int -> [Board]
+createBoards rows size
+  | length rows < size = []
+  | otherwise =
+    let (boardRows, rest) = splitAt size rows
+        board = map makeRow boardRows
+     in board : createBoards rest size
 
 isWinningBoard :: Board -> Bool
 isWinningBoard board =
