@@ -36,8 +36,7 @@ ex1 input =
          else 1) $
   map countZerosAndOnes input
   where
-    calcGammaAndEpsilon xs =
-      (calcBin (reverse xs) 0, (flip calcBin) 0 $ invertBin $ reverse xs)
+    calcGammaAndEpsilon xs = (calcBin xs, calcBin $ map invertBin xs)
 
 -- takes string that represents a binary and returns a list containing each
 -- value. split "0101" = [0,1,0,1]
@@ -50,11 +49,10 @@ ex2 input =
 
 calcRating rows pos criteria =
   let (zeros, ones) = countZerosAndOnes $ (transpose rows) !! pos
-      -- for oxygen, keep 1 if zeros and ones are EQ
       resultingBit = criteria zeros ones
       filteredRows = filter (\row -> (row !! pos) == resultingBit) rows
    in if length rows == 1
-        then calcBin (reverse $ head rows) 0
+        then calcBin $ head rows
         else calcRating filteredRows (pos + 1) criteria
 
 -- picks bigger values, and one if eq.
@@ -71,12 +69,10 @@ bitCriteriaCO2 zeros ones =
     EQ -> 0
     LT -> 0
 
-invertBin =
-  map
-    (\x ->
-       if x == 1
-         then 0
-         else 1)
+invertBin x =
+  if x == 1
+    then 0
+    else 1
 
 countZerosAndOnes =
   foldl
@@ -86,9 +82,12 @@ countZerosAndOnes =
          else (zeros + 1, ones))
     (0, 0)
 
-calcBin :: [Int] -> Int -> Int
-calcBin [] _ = 0
-calcBin (x:xs) y
+calcBin :: [Int] -> Int
+calcBin xs = calcBin' (reverse xs) 0
+
+calcBin' :: [Int] -> Int -> Int
+calcBin' [] _ = 0
+calcBin' (x:xs) y
   -- power in haskell: https://wiki.haskell.org/Power_function
-  | x == 1 = 2 ^ y * x + calcBin xs (y + 1)
-  | otherwise = calcBin xs (y + 1)
+  | x == 1 = 2 ^ y * x + calcBin' xs (y + 1)
+  | otherwise = calcBin' xs (y + 1)
