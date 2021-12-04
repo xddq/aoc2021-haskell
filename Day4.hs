@@ -31,9 +31,9 @@ main = do
   -- converts them to list of int values
   let numbers =
         map toInt . map (trimWith isPunctuation) $
-        splitOn (not . isPunctuation) numbersRow
+        splitOn isPunctuation numbersRow
   let boards = createBoards $ drop 1 $ rows
-  -- print boards
+  -- print numbers
   print $ ex1 boards numbers
   return ()
 
@@ -48,8 +48,7 @@ type Row = [Cell]
 
 type Board = [Row]
 
--- TODO: should be called splitOnNot or something. change logic or naming later.
-splitOn pred = groupBy (\_ next -> pred next)
+splitOn pred = groupBy (\_ next -> (not . pred) next)
 
 trim = dropWhileEnd isSpace . dropWhile isSpace
 
@@ -76,7 +75,7 @@ isMarked (_, marked) = marked
 makeRow :: [Char] -> Row
 makeRow =
   map makeCell .
-  map toInt . map trim . filter (not . (all isSpace)) . splitOn (not . isSpace)
+  map toInt . map trim . filter (not . (all isSpace)) . splitOn isSpace
   where
     toInt x = read x :: Int
 
@@ -86,10 +85,6 @@ unmarkedNumbers board = map (\row -> filter (not . isMarked) row) board
 sumOfBoard :: Board -> Int
 sumOfBoard board = sum $ map (\row -> sum $ map (\(val, _) -> val) row) board
 
--- DEBUG:
--- sumOfBoard works.
--- unmarkedNumbers works.
--- numbers works.
 -- finds winning board and calculates the result
 ex1 :: [Board] -> [Int] -> Int
 ex1 boards (x:numbers) =
@@ -100,27 +95,9 @@ ex1 boards (x:numbers) =
         then ex1 markedBoards numbers
         else x * (sumOfBoard $ unmarkedNumbers $ head winningBoards)
 
--- testboard
-testBoard :: Board
-testBoard =
-  [ [(65, True), (24, True), (23, True), (1, True), (19, False)]
-  , [(54, True), (35, True), (76, True), (71, True), (49, False)]
-  , [(53, True), (34, True), (75, True), (70, True), (48, False)]
-  , [(10, True), (75, True), (99, True), (91, True), (97, False)]
-  , [(21, True), (78, True), (17, True), (18, True), (81, False)]
-  ]
-
-testRows =
-  [ "65 24 23  1 19"
-  , "54 35 76 71 49"
-  , "53 34 75 70 48"
-  , "10 75 99 91 97"
-  , "21 78 17 18 81"
-  ]
-
 createBoards :: [String] -> [Board]
 createBoards (r1:r2:r3:r4:r5:rows) =
-  let board = map makeRow (r1 : r2 : r3 : r4 : [])
+  let board = map makeRow (r1 : r2 : r3 : r4 : r5 : [])
    in [board] ++ createBoards rows
 createBoards _ = []
 
@@ -132,3 +109,11 @@ isWinningBoard board =
 
 isWinningRow :: Row -> Bool
 isWinningRow = all isMarked
+-- ex1 :: [Board] -> [Int] -> Int
+-- ex1 boards (x:numbers) =
+--   let markedBoards = map (markBoard x) boards
+--       winningBoards = filter isWinningBoard markedBoards
+--       winningBoard = head winningBoards
+--    in if null winningBoards
+--         then ex1 markedBoards numbers
+--         else x * (sumOfBoard $ unmarkedNumbers $ head winningBoards)
