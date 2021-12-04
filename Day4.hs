@@ -34,6 +34,7 @@ main = do
   let boardSize = 5
   let boards = createBoards (drop 1 rows) boardSize
   print $ ex1 boards numbers
+  print $ ex2 boards numbers
   return ()
 
 toInt :: String -> Int
@@ -104,13 +105,27 @@ sumOfBoard board = sum $ map (sum . map fst) board
 --
 -- finds winning board and calculates the result
 ex1 :: [Board] -> [Int] -> Int
+-- no board found. error out.
+ex1 boards [] = undefined
 ex1 boards (x:numbers) =
   let markedBoards = map (markBoard x) boards
-      winningBoards = filter isWinningBoard markedBoards
-      winningBoard = head winningBoards
-   in if null winningBoards
-        then ex1 markedBoards numbers
-        else x * sumOfBoard (unmarkedNumbers $ head winningBoards)
+      selectedBoards = filter isWinningBoard markedBoards
+   in case length selectedBoards of
+        1 -> x * sumOfBoard (unmarkedNumbers $ head selectedBoards)
+        _ -> ex1 markedBoards numbers
+
+-- finds losing board, then plays until it wins.
+ex2 :: [Board] -> [Int] -> Int
+-- no board found. error out.
+ex2 boards [] = undefined
+ex2 boards (x:numbers) =
+  let markedBoards = map (markBoard x) boards
+      selectedBoards = filter (not . isWinningBoard) markedBoards
+   in case length selectedBoards of
+        1 ->
+          let losingBoard = head selectedBoards
+           in ex1 [losingBoard] numbers
+        _ -> ex2 markedBoards numbers
 
 createBoards :: [String] -> Int -> [Board]
 createBoards rows size
@@ -128,11 +143,3 @@ isWinningBoard board =
 
 isWinningRow :: Row -> Bool
 isWinningRow = all isMarked
--- ex1 :: [Board] -> [Int] -> Int
--- ex1 boards (x:numbers) =
---   let markedBoards = map (markBoard x) boards
---       winningBoards = filter isWinningBoard markedBoards
---       winningBoard = head winningBoards
---    in if null winningBoards
---         then ex1 markedBoards numbers
---         else x * (sumOfBoard $ unmarkedNumbers $ head winningBoards)
