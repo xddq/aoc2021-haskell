@@ -29,15 +29,21 @@ import Data.List.Index
 -- for spliOn
 import Data.List.Split
 
-main = do
-  input <- readFile "testInput"
+type Row = [Int]
+
+type Grid = [Row]
+
+main
+  -- input <- readFile "testInput"
+ = do
+  input <- readFile "inputDay5"
   let rows = filter validRow . map (createRanges . parseRow) $ lines input
       grid = makeGrid
-  -- y == 1 --> horizontalRow
-  -- x == 1 --> verticalRow
-  print $ head rows
-  print $ markGrid grid (head rows)
-  -- print $ foldl (\grid row -> markGrid grid row) grid rows
+      resultingGrid = foldl (\grid row -> markGrid grid row) grid rows
+  --     verticalRow = head $ tail $ tail rows
+  -- print verticalRow
+  -- print $ markGrid grid verticalRow
+  print $ foldl (\acc row -> acc + countHits row) 0 resultingGrid
   return ()
 
 -- Parses input, returns the required values in format [x1,y1,x2,y2].
@@ -55,7 +61,7 @@ createRanges (x1:y1:x2:y2:xs) = (makeRange x1 x2, makeRange y1 y2)
         else range (start, end)
 createRanges _ = ([], [])
 
--- checks if a given row contains useful information for us. We only check
+-- Checks if a given row contains useful information for us. We only check
 -- vertical or horizontal rows.
 validRow :: ([Int], [Int]) -> Bool
 validRow row = isHorizontalRow row || isVerticalRow row
@@ -64,40 +70,41 @@ isHorizontalRow (xRange, yRange) = length yRange == 1
 
 isVerticalRow (xRange, yRange) = length xRange == 1
 
--- creates 10x10 grid for testing.
--- TODO(pierre): create 1000x1000 grid.
+-- create 1000x1000 grid (based on checking input values)
 makeGrid :: Grid
 makeGrid =
-  let row = take 10 [1 ..]
-   in map (\_ -> take 10 [0,0 ..]) row
+  let row = take 1000 [1 ..]
+   in map (\_ -> take 1000 [0,0 ..]) row
 
-markGrid :: Grid -> ([Int], [Int]) -> Grid
+-- markGrid :: Grid -> ([Int], [Int]) -> Grid
 markGrid grid row@(xRange, yRange)
+  -- note: order matters since we implement vertical rows by multiple horizonal
+  -- row markings. with stuff like ([2],[3]) ([2],[4]) etc.. for a verticalRow
+  -- marking for something like ([2],[3,4])
   | isHorizontalRow row =
-    let splitPos = head xRange
+    let splitPos = head yRange
         (left, currentRow:right) = splitAt splitPos grid
-     in left ++ [markRow currentRow yRange] ++ right
-  | isVerticalRow row = grid
-    -- let splitPos = head yRange
-    --     (left, currentRow:right) = splitAt splitPos grid
-    --  in left ++ [markRow currentRow yRange] ++ right
+     in left ++ [markRow currentRow xRange] ++ right
+  | isVerticalRow row =
+    foldl (\grid val -> markGrid grid (xRange, [val])) grid yRange-- TODO: continue here! 45 degree only.
+  -- | isDiagonalRow row =
 
--- markRow grid (head yRange) xRange
 markRow :: Row -> [Int] -> Row
 markRow row positions =
   let startPos = head positions
       endPos = last positions
       (left, rest) = splitAt startPos row
-      (vals, right) = splitAt (endPos - startPos) rest
+      (vals, right) = splitAt (1 + endPos - startPos) rest
    in left ++ map (+ 1) vals ++ right
+
+countHits :: Row -> Int
+countHits =
+  sum .
+  map
+    (\x ->
+       if x > 1
+         then 1
+         else 0)
 
 toInt :: String -> Int
 toInt = read
-
-type Row = [Int]
-
-type Grid = [Row]
-
--- removes items from left and right of given list based on given predicate.
-trimWith :: (a -> Bool) -> [a] -> [a]
-trimWith pred = dropWhileEnd pred . dropWhile pred
