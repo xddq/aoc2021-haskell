@@ -36,78 +36,51 @@ type Grid = [Row]
 main
   -- input <- readFile "testInput"
  = do
-  input <- readFile "testInput"
-  let rows = filter validRow . map (createRanges . parseRow) $ lines input
-      points = filter validPoints . map (createPoints . parseRow) $ lines input
+  input <- readFile "inputDay5"
+  let points = filter (not . null) . map (parsePoints . parseRow) $ lines input
       grid = makeGrid
-      -- resultingGrid = foldl (\grid row -> markGrid grid row) grid rows
-      verticalRow = head $ tail $ tail rows
-      horizontalTuple = head $ points
-      verticalTuple = head $ tail $ tail points
-  print points
-  -- print $ markGrid grid horizontalPoint
-  print verticalTuple
-  print $ getPoints verticalTuple
-  print $ markGrid grid $ getPoints verticalTuple
-  print horizontalTuple
-  print $ getPoints horizontalTuple
-  print $ markGrid grid $ getPoints horizontalTuple
-  -- print $ foldl (\acc row -> acc + countHits row) 0 resultingGrid
+  -- print points
+  -- mapM_ print $ markGrid grid $ concatMap getPoints points
+  print $ countHits $ markGrid grid $ concatMap getPoints points
   return ()
 
 type Point = (Int, Int)
 
 type Walk = [Point]
 
--- Checks whether the points can form a diagonal, horizontal, or vertical
--- connection.
--- NOTE: can use uncurry to transform a function which takes two arguments to a
--- function which takes a tuple consisting of these two arguments!
-validPoints :: (Point, Point) -> Bool
-validPoints =
-  or . sequenceA (map uncurry [isDiagonal, isHorizontal, isVertical])
-
--- testq = [isDiagonal, isHorizontal, isVertical]
---
--- testStuff = or . sequenceA (map uncurry [isDiagonal, isHorizontal, isVertical])
-isDiagonal (x1, y1) (x2, y2) = x2 - x1 == y2 - x1
+isDiagonal (x1, y1) (x2, y2) = abs (x2 - x1) == abs (y2 - y1)
 
 isHorizontal (x1, y1) (x2, y2) = y1 == y2
 
 isVertical (x1, y1) (x2, y2) = x1 == x2
 
-testDiagonal point1 point2 = getDiagonalPoints point1 point2 []
-
-getDiagonalPoints :: Point -> Point -> Walk -> Walk
-getDiagonalPoints p1@(x1, y1) p2@(x2, y2) walk
-  -- is not diagonal
-  | x2 - x1 /= y2 - y1 = []
-  -- reached the goal
-  | p1 == p2 = p1 : walk
-  -- MAYBE(pierre): how would we implement '>' for points? Would need to make
-  -- point data I think? Could create Point and implement fmap and > for it.
-  -- walk towards goal
-  | otherwise =
-    if x1 > x2
-      then getDiagonalPoints p1 (x2 + 1, y2 + 1) (p2 : walk)
-      else getDiagonalPoints (x1 + 1, y1 + 1) p2 (p1 : walk)
-
 -- Parses input, returns the required values in format [x1,y1,x2,y2].
 parseRow :: String -> [Int]
 parseRow = map toInt . filter (/= "") . splitOneOf ",-> "
 
-createPoints :: [Int] -> (Point, Point)
-createPoints (x1:y1:x2:y2:xs) = ((x1, y1), (x2, y2))
+-- Parses input, transforms list in format [x1,y1,x2,y2] to ((x1,y1),(x2,y2))
+parsePoints :: [Int] -> (Point, Point)
+parsePoints (x1:y1:x2:y2:xs) = ((x1, y1), (x2, y2))
 
+-- Returns list of all points which connect the two given points (inclusive).
 getPoints :: (Point, Point) -> [Point]
 getPoints (p1, p2)
   | isHorizontal p1 p2 = getHorizontalPoints p1 p2 []
   | isVertical p1 p2 = getVerticalPoints p1 p2 []
   | isDiagonal p1 p2 = getDiagonalPoints p1 p2 []
+  | otherwise = []
 
 getVerticalPoints :: Point -> Point -> Walk -> Walk
-getVerticalPoints (x1, y1) (x2, y2) walk =
-  getHorizontalPoints (y1, x1) (y2, x2) walk
+getVerticalPoints p1@(x1, y1) p2@(x2, y2) walk
+    -- is not vertical
+  | x1 /= x2 = []
+    -- reached the goal
+  | y1 == y2 = p1 : walk
+  -- walk towards goal
+  | otherwise =
+    if y1 > y2
+      then getVerticalPoints p1 (x2, y2 + 1) (p2 : walk)
+      else getVerticalPoints (x1, y1 + 1) p2 (p1 : walk)
 
 getHorizontalPoints :: Point -> Point -> Walk -> Walk
 getHorizontalPoints p1@(x1, y1) p2@(x2, y2) walk
@@ -115,40 +88,37 @@ getHorizontalPoints p1@(x1, y1) p2@(x2, y2) walk
   | y1 /= y2 = []
     -- reached the goal
   | x1 == x2 = p1 : walk
+  -- walk towards goal
   | otherwise =
     if x1 > x2
       then getHorizontalPoints p1 (x2 + 1, y2) (p2 : walk)
       else getHorizontalPoints (x1 + 1, y1) p2 (p1 : walk)
 
--- getRanges :: (Point, Point) -> ([Int], [Int])
--- getRanges ((x1, y1), (x2, y2)) = (makeRange x1 x2, makeRange y1 y2)
--- Takes a parsed row and returns a tuple including the calculated ranges for
--- the given x1,x2 and y1,y2 values.
-createRanges :: [Int] -> ([Int], [Int])
-createRanges (x1:y1:x2:y2:xs) = (makeRange x1 x2, makeRange y1 y2)
-  where
-    makeRange start end =
-      if start > end
-        then range (end, start)
-        else range (start, end)
-createRanges _ = ([], [])
+getDiagonalPoints :: Point -> Point -> Walk -> Walk
+getDiagonalPoints p1@(x1, y1) p2@(x2, y2) walk
+  -- is not diagonal
+  | not $ isDiagonal p1 p2 = []
+  -- reached the goal
+  | p1 == p2 = p1 : walk
+  -- walk towards goal
+  | otherwise =
+    let (nextP1, nextP2, oldP) = walkDiagonal p1 p2
+     in getDiagonalPoints nextP1 nextP2 (oldP : walk)
 
--- Checks if a given row contains useful information for us. We only check
--- vertical or horizontal rows.
-validRow :: ([Int], [Int]) -> Bool
-validRow row = isHorizontalRow row || isVerticalRow row
-
-isHorizontalRow (xRange, yRange) = length yRange == 1
-
-isVerticalRow (xRange, yRange) = length xRange == 1
+walkDiagonal :: Point -> Point -> (Point, Point, Point)
+walkDiagonal p1@(x1, y1) p2@(x2, y2)
+  | x1 > x2 && y1 > y2 = (p1, (x2 + 1, y2 + 1), p2)
+  | x1 > x2 && y1 < y2 = (p1, (x2 + 1, y2 - 1), p2)
+  | x1 < x2 && y1 > y2 = (p1, (x2 - 1, y2 + 1), p2)
+  | x1 < x2 && y1 < y2 = (p1, (x2 - 1, y2 - 1), p2)
+  | x1 == x2 || y1 == x2 = (p1, p2, p2)
 
 -- create 1000x1000 grid (based on checking input values)
 makeGrid :: Grid
 makeGrid =
-  let row = take 10 [1 ..]
-   in map (\_ -> take 10 [0,0 ..]) row
+  let row = take 1000 [1 ..]
+   in map (\_ -> take 1000 [0,0 ..]) row
 
--- markGrid :: Grid -> ([Int], [Int]) -> Grid
 markGrid :: Grid -> [Point] -> Grid
 markGrid grid [] = grid
 markGrid grid ((x, y):points) =
@@ -158,33 +128,25 @@ markGrid grid ((x, y):points) =
       newGrid = leftRows ++ newRow : rightRows
    in markGrid newGrid points
 
-markRow :: Row -> [Int] -> Row
-markRow row positions =
-  let startPos = head positions
-      endPos = last positions
-      (left, rest) = splitAt startPos row
-      (vals, right) = splitAt (1 + endPos - startPos) rest
-   in left ++ map (+ 1) vals ++ right
-
-countHits :: Row -> Int
+countHits :: Grid -> Int
 countHits =
   sum .
+  concat .
   map
-    (\x ->
-       if x > 1
-         then 1
-         else 0)
+    (\row ->
+       map
+         (\x ->
+            if x > 1
+              then 1
+              else 0)
+         row)
 
 toInt :: String -> Int
 toInt = read
--- markGrid grid row@(xRange, yRange)
---   -- note: order matters since we implement vertical rows by multiple horizonal
---   -- row markings. with stuff like ([2],[3]) ([2],[4]) etc.. for a verticalRow
---   -- marking for something like ([2],[3,4])
---   | isHorizontalRow row =
---     let splitPos = head yRange
---         (left, currentRow:right) = splitAt splitPos grid
---      in left ++ [markRow currentRow xRange] ++ right
---   | isVerticalRow row =
---     foldl (\grid val -> markGrid grid (xRange, [val])) grid yRange -- TODO: continue here! 45 degree only.
---   -- | isDiagonalRow row =
+-- Checks whether the points can form a diagonal, horizontal, or vertical
+-- connection.
+-- NOTE: can use uncurry to transform a function which takes two arguments to a
+-- function which takes a tuple consisting of these two arguments!
+-- validPoints :: (Point, Point) -> Bool
+-- validPoints =
+--   or . sequenceA (map uncurry [isDiagonal, isHorizontal, isVertical])
