@@ -1,3 +1,7 @@
 # ignores vim compile files
 *.pdf
 */*.pdf
+# compiled day exercise
+Day?
+*.hi
+*.o

@@ -19,13 +19,6 @@
 -- ..........
 -- ..........
 -- 222111....
--- for range
-import Data.Ix
-
--- for range
-import Data.List
-import Data.List.Index
-
 -- for spliOn
 import Data.List.Split
 
@@ -33,20 +26,16 @@ type Row = [Int]
 
 type Grid = [Row]
 
-main
-  -- input <- readFile "testInput"
- = do
-  input <- readFile "inputDay5"
-  let points = filter (not . null) . map (parsePoints . parseRow) $ lines input
-      grid = makeGrid
-  -- print points
-  -- mapM_ print $ markGrid grid $ concatMap getPoints points
-  print $ countHits $ markGrid grid $ concatMap getPoints points
-  return ()
-
 type Point = (Int, Int)
 
 type Walk = [Point]
+
+main = do
+  input <- readFile "inputDay5"
+  let points = filter (not . null) . map (parsePoints . parseRow) $ lines input
+      grid = makeGrid
+  print $ countHits $ markGrid grid $ concatMap getPoints points
+  return ()
 
 isDiagonal (x1, y1) (x2, y2) = abs (x2 - x1) == abs (y2 - y1)
 
@@ -70,18 +59,6 @@ getPoints (p1, p2)
   | isDiagonal p1 p2 = getDiagonalPoints p1 p2 []
   | otherwise = []
 
-getVerticalPoints :: Point -> Point -> Walk -> Walk
-getVerticalPoints p1@(x1, y1) p2@(x2, y2) walk
-    -- is not vertical
-  | x1 /= x2 = []
-    -- reached the goal
-  | y1 == y2 = p1 : walk
-  -- walk towards goal
-  | otherwise =
-    if y1 > y2
-      then getVerticalPoints p1 (x2, y2 + 1) (p2 : walk)
-      else getVerticalPoints (x1, y1 + 1) p2 (p1 : walk)
-
 getHorizontalPoints :: Point -> Point -> Walk -> Walk
 getHorizontalPoints p1@(x1, y1) p2@(x2, y2) walk
     -- is not horizontal
@@ -93,6 +70,18 @@ getHorizontalPoints p1@(x1, y1) p2@(x2, y2) walk
     if x1 > x2
       then getHorizontalPoints p1 (x2 + 1, y2) (p2 : walk)
       else getHorizontalPoints (x1 + 1, y1) p2 (p1 : walk)
+
+getVerticalPoints :: Point -> Point -> Walk -> Walk
+getVerticalPoints p1@(x1, y1) p2@(x2, y2) walk
+    -- is not vertical
+  | x1 /= x2 = []
+    -- reached the goal
+  | y1 == y2 = p1 : walk
+  -- walk towards goal
+  | otherwise =
+    if y1 > y2
+      then getVerticalPoints p1 (x2, y2 + 1) (p2 : walk)
+      else getVerticalPoints (x1, y1 + 1) p2 (p1 : walk)
 
 getDiagonalPoints :: Point -> Point -> Walk -> Walk
 getDiagonalPoints p1@(x1, y1) p2@(x2, y2) walk
@@ -119,6 +108,8 @@ makeGrid =
   let row = take 1000 [1 ..]
    in map (\_ -> take 1000 [0,0 ..]) row
 
+-- iterates through given points and increases value of cell for each given
+-- point.
 markGrid :: Grid -> [Point] -> Grid
 markGrid grid [] = grid
 markGrid grid ((x, y):points) =
