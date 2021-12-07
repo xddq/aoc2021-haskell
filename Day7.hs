@@ -43,7 +43,7 @@ main = do
           crabPositions
   let positions = M.keys crabMap
   -- print positions
-  -- print $ ex1 crabMap positions Part1
+  print $ ex1 crabMap positions Part1
   print $ ex1 crabMap positions Part2
   return ()
 
@@ -84,20 +84,20 @@ calcFuelCost crabs part goalPosition =
     0
     crabs
   -- where
-  --
 
 getCost :: Int -> CrabPosition -> CrabPosition -> Part -> Int
 getCost crabCount crabPosition goalPosition part =
   if part == Part1
     then crabCount * (abs (crabPosition - goalPosition))
     else let positions =
-               if crabPosition < goalPosition
-                 -- Walk till -1 since we don't need fuel once we reached the
-                 -- goal. Example: 0 .. 2 --> Need fuel from 0 to 1, then from 1
-                 -- to 2. But not from 2 to 2 (which would be applied using
-                 -- foldl).
-                 then [crabPosition .. goalPosition - 1]
-                 else [goalPosition .. crabPosition - 1]
+               case compare crabPosition goalPosition of
+                 EQ -> []
+                -- Walk till -1 since we don't need fuel once we reached the
+                -- goal. Example: 0 .. 2 --> Need fuel from 0 to 1, then from 1
+                -- to 2. But not from 2 to 2 (which would be applied using
+                -- foldl).
+                 LT -> [crabPosition .. goalPosition - 1]
+                 GT -> [goalPosition .. crabPosition - 1]
           in crabCount *
              (fst $
               foldl
