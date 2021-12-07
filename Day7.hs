@@ -34,17 +34,17 @@ Initial Plan:
 -}
 main = do
   input <- readFile "inputDay7"
-  -- let crabPositions = map toInt $ splitOn "," input
-  let crabPositions = [16, 1, 2, 0, 4, 2, 7, 1, 2, 14]
+  let crabPositions = map toInt $ splitOn "," input
   let crabMap =
         foldl
           (\acc crabPosition -> M.insertWith (+) crabPosition 1 acc)
           M.empty
           crabPositions
-  let positions = M.keys crabMap
-  -- print positions
-  print $ ex1 crabMap positions Part1
-  print $ ex1 crabMap positions Part2
+  let (lowestPos, _) = M.findMin crabMap
+  let (highestPos, _) = M.findMax crabMap
+  let allPositions = [lowestPos .. highestPos]
+  print $ ex1 crabMap allPositions Part1
+  print $ ex1 crabMap allPositions Part2
   return ()
 
 type CrabMap = Map Int Int
