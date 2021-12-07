@@ -1,22 +1,24 @@
--- example data
--- crab positions
--- 16,1,2,0,4,2,7,1,2,14
--- possible move sequence
--- Move from 16 to 2: 14 fuel
--- Move from 1 to 2: 1 fuel
--- Move from 2 to 2: 0 fuel
--- Move from 0 to 2: 2 fuel
--- Move from 4 to 2: 2 fuel
--- Move from 2 to 2: 0 fuel
--- Move from 7 to 2: 5 fuel
--- Move from 1 to 2: 1 fuel
--- Move from 2 to 2: 0 fuel
--- Move from 14 to 2: 12 fuel
--- This costs a total of 37 fuel. This is the cheapest possible outcome; more
--- expensive outcomes include aligning at position 1 (41 fuel), position 3 (39
--- fuel), or position 10 (71 fuel).
+{-|
+Example data:
+    crab positions
+        16,1,2,0,4,2,7,1,2,14
+    possible move sequence
+        Move from 16 to 2: 14 fuel
+        Move from 1 to 2: 1 fuel
+        Move from 2 to 2: 0 fuel
+        Move from 0 to 2: 2 fuel
+        Move from 4 to 2: 2 fuel
+        Move from 2 to 2: 0 fuel
+        Move from 7 to 2: 5 fuel
+        Move from 1 to 2: 1 fuel
+        Move from 2 to 2: 0 fuel
+        Move from 14 to 2: 12 fuel
+    This costs a total of 37 fuel. This is the cheapest possible outcome; more
+    expensive outcomes include aligning at position 1 (41 fuel), position 3 (39
+    fuel), or position 10 (71 fuel).
+-}
 -- for using Map. src for notation:
--- https://stackoverflow.com/questions/20576229/an-example-of-using-data-map-in-haskell
+-- https://hackage.haskell.org/package/containers-0.4.0.0/docs/Data-Map.html
 import Data.Map (Map)
 import qualified Data.Map as M
 
@@ -51,6 +53,8 @@ type CrabMap = Map Int Int
 
 type CrabPosition = Int
 
+type CrabCount = Int
+
 type FuelCost = Int
 
 type StepCost = Int
@@ -83,9 +87,8 @@ calcFuelCost crabs part goalPosition =
        cost + (getCost crabCount crabPosition goalPosition part))
     0
     crabs
-  -- where
 
-getCost :: Int -> CrabPosition -> CrabPosition -> Part -> Int
+getCost :: CrabCount -> CrabPosition -> CrabPosition -> Part -> FuelCost
 getCost crabCount crabPosition goalPosition part =
   if part == Part1
     then crabCount * (abs (crabPosition - goalPosition))
