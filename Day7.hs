@@ -69,16 +69,7 @@ data Part
   deriving (Eq)
 
 ex1 :: CrabMap -> [CrabPosition] -> Part -> FuelCost
-ex1 crabs positions part =
-  let costs = map (calcFuelCost crabs part) positions
-      minimalCost =
-        foldl1
-          (\lowestCost cost ->
-             if cost < lowestCost
-               then cost
-               else lowestCost)
-          costs
-   in minimalCost
+ex1 crabs positions part = minimum $ map (calcFuelCost crabs part) positions
 
 calcFuelCost :: CrabMap -> Part -> CrabPosition -> FuelCost
 calcFuelCost crabs part goalPosition =
