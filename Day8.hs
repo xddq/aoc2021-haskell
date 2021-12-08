@@ -41,17 +41,16 @@ Initial Plan:
     6) for ex2 (don't know task yet) but probably take sum of the value of all our keys.
 -}
 main = do
-  line <- parseFile
-  let (digits, outputs) = head $ line
+  lines <- parseFile
   -- print $ decodeSegments firstDigits M.empty
-  print $ ex1 digits outputs M.empty
+  print $ ex1 lines M.empty
   return ()
 
 parseFile :: IO [([String], [String])]
 parseFile
   -- input <- readFile "inputDay8"
  = do
-  input <- readFile "testInput"
+  input <- readFile "inputDay8"
   let seperatedLines = map (splitOn "|") $ lines input
   return $
     map
@@ -67,11 +66,13 @@ type Digit = Int
 type Decoding = String
 
 -- ex1 :: [[Segment]] -> [[Segment]] -> Count
-ex1 segments outputVals digitCountMap =
-  let decodings = decodeSegments segments M.empty
+ex1 :: [([String], [String])] -> Map Digit Count -> Count
+ex1 [] _ = 0
+ex1 ((segment, output):rest) digitCountMap =
+  let decodings = decodeSegments segment M.empty
       decodingsList = M.toList decodings
-   in sum $ map (countMatches decodingsList digitCountMap) outputVals -- in decodingsList
-   -- in outputVals
+   in ex1 rest digitCountMap +
+      (sum $ map (countMatches decodingsList digitCountMap) output)
 
 countMatches [] _ _ = 0
 countMatches ((_, decoding):decodings) digitCountMap val
