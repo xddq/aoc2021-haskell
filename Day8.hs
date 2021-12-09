@@ -33,21 +33,24 @@ import Data.List.Split
 
 {-|
 Initial Plan:
-    1) Use map for key/value retrieval. Store each digit (0..9) as key and their string representation as value.
-    2) Decode the strings until we have each value decoded. First [1,4,7,8] which can be decoded by length. Then decode [2,3,5] with the help of values [1,4,7,8], then decode [0,6,9] with the help of values [1,4,7,8]. Try to do this in parallel (if I figure out how to do this somewhat quickly)
+    1) Use map for key/value retrieval. Store each digit (0..9) as key and their
+string representation as value.
+    2) Decode the strings until we have each value decoded. First [1,4,7,8]
+which can be decoded by length. Then decode [2,3,5] with the help of values
+[1,4,7,8], then decode [0,6,9] with the help of values [1,4,7,8]. Try to do this
+in parallel (if I figure out how to do this somewhat quickly)
     3) For each input, create a map containing our decodings.
-    4) Then use decodingMap and a digitCountMap consisting of key(digit) and value(sum of occurences) and the stuff we have to decode.
+    4) Then use decodingMap and a digitCountMap consisting of key(digit) and
+value(sum of occurences) and the stuff we have to decode.
     5) for ex1 use sum of values for the keys 1,4,7,8 from digitCountMap
-    6) for ex2 (don't know task yet) but probably take sum of the value of all our keys.
+    6) for ex2 (don't know task yet) but probably take sum of the value of all
+our keys.
 -}
 parseFile :: IO [([String], [String])]
 parseFile = do
   input <- readFile "inputDay8"
   let seperatedLines = map (splitOn "|") $ lines input
-  return $
-    map
-      (\line -> (words $ head $ line, words $ head $ drop 1 $ line))
-      seperatedLines
+  return $ map (\line -> (words $ head line, words $ line !! 1)) seperatedLines
 
 type Segment = [String]
 
@@ -65,7 +68,7 @@ ex1 ((segment, output):rest) digitCountMap =
   let decodings = decodeSegments1 segment M.empty
       decodingsList = M.toList decodings
    in ex1 rest digitCountMap +
-      (sum $ map (countMatches1 decodingsList digitCountMap) output)
+      sum (map (countMatches1 decodingsList digitCountMap) output)
 
 countMatches1 [] _ _ = 0
 countMatches1 ((_, decoding):decodings) digitCountMap val
@@ -82,7 +85,7 @@ ex2 :: [(Segment, Output)] -> Count
 ex2 [] = 0
 ex2 ((segment, output):rest) =
   let decodings = decodeSegments2 segment M.empty
-   in (read $ concat $ map (decode decodings) output) + ex2 rest
+   in read (concatMap (decode decodings) output) + ex2 rest
 
 decode :: Map Digit Decoding -> String -> String
 decode decoding val =
