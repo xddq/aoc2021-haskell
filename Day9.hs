@@ -14,45 +14,13 @@ count as lower).
         - risk level of a low point is 1 plus its height
         - get the sum of risk levels of all low points.
 -}
+import Data.Map (Map)
+import qualified Data.Map as M
+
 -- imports only digitToInt from Data.Char
 -- https://wiki.haskell.org/Import
 import Data.Char (digitToInt)
-import Data.List (transpose)
-
-type Row = [Maybe Int]
-
-type Col = Row
-
--- prefix with P since Left and Right are already taken for Either!
-data Position a
-  = Direction PDirection a
-  | PEdge
-  | PBasin
-  -- | PSkip -- added for ex2. Will be assigned to old lowest points.
-  deriving (Show, Read, Eq)
-
-data PDirection
-  = PLeft
-  | PAbove
-  | PRight
-  | PBelow
-  | PMiddle
-  deriving (Show, Read, Eq)
-
-instance (Ord a, Eq a) => Ord (Position a) where
-  compare (Direction _ x) (Direction _ y) = compare x y
-  compare (PEdge) (Direction _ y) = LT
-  compare (Direction _ y) (PEdge) = LT
-  compare PEdge PEdge = EQ
-  -- this case was added for Part2. Required since we replace old lowest points
-  -- with PBasin.
-  compare PBasin _ = GT
-  compare _ PBasin = LT
-
--- MAYBE(pierre): Is it possibile to define that first positon must be
--- PLeft etc..?
-type Point
-   = (Position Int, Position Int, Position Int, Position Int, Position Int)
+import Data.List (nub, sortBy, transpose)
 
 {-|
 Initial Plan:
@@ -67,144 +35,148 @@ right, Just below)
     - fold the grid to get the result (remember adding +1 for each point)
 -}
 main = do
-  input <- lines <$> readFile "testInput"
+  input <- lines <$> readFile "inputDay9"
+  -- input <- lines <$> readFile "inputDay9"
   print $ ex1 input
   print $ ex2 input
-  -- print $ getPoints input
-  -- print $ filter isLowPoint (getPoints input)
-  -- print $ makeNewPoints (getPoints input)
-  return () -- ex1 :: [Int] -> Int
+  return ()
 
--- ex2 :: [[Char]] -> Int
-ex2 input =
-  let points = getPoints input
-      lowPoints = filter isLowPoint points
-   in makeBasin points lowPoints
+type Grid = Map Int (Map Int Int)
 
--- makeBasin :: [Point] -> Point -> [Int]
--- makeBasin [] point = []
-makeBasin points lowPoints =
-  let newPointss = map (`addBasin` points) lowPoints
-      newLowPointss = map (filter isLowPoint) newPointss
-    -- maybe check if point is 9
-      -- newLowPoints = filter isLowPoint newPoints
-   in newPointss
+type Point = (Int, Int)
 
-addBasin :: Point -> [Point] -> [Point]
-addBasin basinPoint =
-  map
-    (\x ->
-       if x == basinPoint
-         then markAsBasin x
-         else x)
-
-markAsBasin =
-  (\(left, above, middle, right, below) -> (left, above, PBasin, right, below))
-
-makeNewPoints :: [Point] -> [Point]
-makeNewPoints [] = []
-makeNewPoints (point:points)
-  | point `elem` (filter isLowPoint (point : points)) =
-    (makeMiddleEdge point) : makeNewPoints points
-  | otherwise = point : makeNewPoints points
-
-makeMiddleEdge =
-  (\(left, above, middle, right, below) -> (left, above, PEdge, right, below))
-
--- Plan for part two: take list of points
--- get list of lowest points
--- calc risk --> (sum map (+1) listLowestPoints)
--- replace the lowest points in the list of points with their middle being an edge and
--- then find the lowest points for the new list of points! (add them
--- recursively)
--- if we have an empty list, return 0
-ex1 :: [[Char]] -> Int
 ex1 input =
-  let rows =
-        map
-          (parseRow (\pos -> Direction PLeft pos) (\pos -> Direction PRight pos))
-          input
-      colInput = transpose input
-      cols =
-        map
-          (parseRow
-             (\pos -> Direction PAbove pos)
-             (\pos -> Direction PBelow pos))
-          colInput
-      -- MAYBE(pierre): Figure out why this did not work.
-      -- combinedResult =
-      --   [ (left, above, middle, right, below)
-      --   | ((left, middle, right):row) <- rows
-      --   , ((above, _, below):col) <- transpose cols
-      --   ]
-      combinedResult =
-        zipWith
-          (\row col ->
-             zipWith
-               (\(left, middle, right) (above, _, below) ->
-                  (left, above, middle, right, below))
-               row
-               col)
-          rows
-          (transpose cols)
-   in sum $
-      map (+ 1) $
-      concatMap (\row -> map getMiddle row) $
-      map (filter isLowPoint) combinedResult
+  let grid = getGrid input
+      lowPoints = getLowPoints grid
+   in foldl (\risk point -> risk + getRisk grid point) 0 $ getLowPoints grid
 
-getPoints :: [[Char]] -> [Point]
-getPoints input =
-  let rows =
+getRisk :: Grid -> Point -> Int
+getRisk grid (x, y) =
+  case M.lookup x grid of
+    Just row ->
+      case M.lookup y row of
+        Just val -> val + 1
+
+ex2 :: [[Char]] -> Int
+ex2 input =
+  let grid = getGrid input
+      lowPoints = getLowPoints grid
+   -- currently no clue why we have duplicated. just use nub for now.
+      basins = map (nub . (makeBasin grid [])) lowPoints
+      largestBasins = sortBy (flip compare) $ map length basins
+      largestThree = take 3 largestBasins
+   in foldl (*) 1 largestThree
+
+makeBasin :: Grid -> [Point] -> Point -> [Point]
+makeBasin grid visitedPoints point
+  | point `elem` visitedPoints = visitedPoints
+  | otherwise =
+    if isLowPoint grid point
+      then let possibleBasins = getNeighbouringPoints grid point
+               newGrid = insertValue grid point ((getValue grid point) + 10)
+            in point :
+               concatMap
+                 (makeBasin newGrid (point : visitedPoints))
+                 possibleBasins
+      else []
+
+getNeighbouringPoints :: Grid -> Point -> [Point]
+getNeighbouringPoints grid (x, y) =
+  let keyCount = length $ M.keys grid
+      rowRange = [0 .. keyCount - 1]
+      colRange = rowRange
+      points = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+   in filter
+        (\(x, y) -> x > -1 && x < keyCount && y > -1 && y < keyCount)
+        points
+
+getLowPoints :: Grid -> [Point]
+getLowPoints grid =
+  let keyCount = length $ M.keys grid
+      rowRange = [0 .. keyCount - 1]
+      colRange = rowRange
+      points =
+        filter (\tuple -> fst tuple /= -1) $
+        concatMap
+          (\x ->
+             map
+               (\y ->
+                  if isLowPoint grid (x, y)
+                    then (x, y)
+                    else (-1, -1))
+               colRange)
+          rowRange
+   in points
+
+isLowPoint :: Grid -> Point -> Bool
+isLowPoint grid (x, y)
+    -- checks if cells around have lower value.
+ =
+  case M.lookup x grid of
+    Just col ->
+      case M.lookup y col of
+        Just val ->
+          val < 9 &&
+          (all
+             (getValue grid (x, y) <)
+             [ getValue grid (x - 1, y)
+             , getValue grid (x + 1, y)
+             , getValue grid (x, y + 1)
+             , getValue grid (x, y - 1)
+             ])
+
+insertValue :: Grid -> Point -> Int -> Grid
+insertValue grid (x, y) val =
+  let innerMap = M.lookup x grid
+   in case innerMap of
+        Just innerMap ->
+          let newInnerMap = M.insert y val innerMap
+           in M.insert x newInnerMap grid
+
+getValue :: Grid -> Point -> Int
+getValue grid (x, y)
+  -- default to a value which is garantueed to be higher than the other cells
+  -- values if we are outside of the grid (lookup will return Nothing)
+ =
+  case M.lookup x grid of
+    Just col ->
+      case M.lookup y col of
+        Just val -> val
+        Nothing -> 1000
+    Nothing -> 1000
+
+-- Builds a grid consisting of a Map of Maps. Using this we can lookup the
+-- values with a given x and y value.
+getGrid :: [[Char]] -> Grid
+getGrid input =
+  let rows = map (\row -> map digitToInt row) input
+      -- transforms input to list of rows with each row having their list of
+      -- (key,value).
+      result =
         map
-          (parseRow (\pos -> Direction PLeft pos) (\pos -> Direction PRight pos))
-          input
-      colInput = transpose input
-      cols =
-        map
-          (parseRow
-             (\pos -> Direction PAbove pos)
-             (\pos -> Direction PBelow pos))
-          colInput
-      combinedResult =
-        concat $
-        zipWith
-          (\row col ->
-             zipWith
-               (\(left, middle, right) (above, _, below) ->
-                  (left, above, middle, right, below))
-               row
-               col)
-          rows
-          (transpose cols)
-   in combinedResult
+          (\key -> map (\val -> (key, (val !! key))) rows)
+          [0 .. (length rows) - 1]
+      resultCols = transpose result
+      firstCol = head resultCols
+      (keys, values) =
+        foldr
+          (\(key, value) (keys, values) -> (key : keys, value : values))
+          ([], [])
+          firstCol
+      grid =
+        foldl
+          (\newMap key ->
+             M.insert
+               key
+               (makeMap $ getKeysAndValues (resultCols !! key))
+               newMap)
+          M.empty
+          [0 .. (length resultCols) - 1]
+   in grid
 
--- getMiddle2 :: Point -> Maybe Int
--- getMiddle2 (left, above, Direction _ val, right, below) = Just val
--- getMiddle2 (left, above, _, right, below) = Nothing
-getMiddle :: Point -> Int
-getMiddle (left, above, Direction _ val, right, below) = val
+getKeysAndValues :: [Point] -> ([Int], [Int])
+getKeysAndValues =
+  foldr (\(key, value) (keys, values) -> (key : keys, value : values)) ([], [])
 
-isLowPoint :: Point -> Bool
-isLowPoint (left, above, middle, right, below) =
-  (all (== LT) $ map (compare middle) [left, above, right, below]) &&
-  middle /= PEdge
-
-parseRow ::
-     (Int -> Position Int)
-  -> (Int -> Position Int)
-  -> [Char]
-  -> [(Position Int, Position Int, Position Int)]
-parseRow left right input =
-  let row = map (\digit -> digitToInt digit) input
-   in zip3
-        (PEdge : map left row)
-        (map (Direction PMiddle) row)
-        ((drop 1 $ map right row) ++ [PEdge]) -- original data structure, could not implement Ord!
--- data Position a
---   = PLeft a
---   | PAbove a
---   | PRight a
---   | PBelow a
---   | PMiddle a
---   | PEdge
---   deriving (Show, Read, Eq)
+makeMap (keys, values) =
+  foldl (\newMap key -> M.insert key (values !! key) newMap) M.empty keys
