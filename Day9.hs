@@ -27,6 +27,7 @@ type Col = Row
 data Position a
   = Direction PDirection a
   | PEdge
+  -- | PSkip -- added for ex2. Will be assigned to old lowest points.
   deriving (Show, Read, Eq)
 
 data PDirection
@@ -39,8 +40,13 @@ data PDirection
 
 instance (Ord a, Eq a) => Ord (Position a) where
   compare (Direction _ x) (Direction _ y) = compare x y
-  compare (PEdge) (Direction _ y) = LT
+  compare (PEdge) (Direction _ y) = GT
   compare (Direction _ y) (PEdge) = LT
+  compare PEdge PEdge = EQ
+  -- this case was added for Part2. Required since we replace old lowest points
+  -- with edges.
+  -- compare PSkip _ = GT
+  -- compare _ PSkip = GT
 
 -- MAYBE(pierre): Is it possibile to define that first positon must be
 -- PLeft etc..?
@@ -62,8 +68,30 @@ right, Just below)
 main = do
   input <- lines <$> readFile "inputDay9"
   -- print input
-  print $ ex1 input
+  -- print $ ex1 input
+  print $ ex2 input
   return () -- ex1 :: [Int] -> Int
+
+-- ex2 :: [[Point]] -> Int
+ex2 input =
+  let points = getPoints input
+   in calcResult points
+  where
+    getRisk = sum . map (\point -> (getMiddle point) + 1)
+    calcResult [] = 0
+    calcResult points =
+      let lowestPoints = filter isLowPoint points
+       in (getRisk lowestPoints) +
+          calcResult (makeNewPoints points lowestPoints)
+
+makeNewPoints [] lowPoints = []
+makeNewPoints (point:points) lowPoints
+  | point `elem` lowPoints =
+    (makeMiddleEdge point) : makeNewPoints points lowPoints
+  | otherwise = makeNewPoints points lowPoints
+
+makeMiddleEdge =
+  (\(left, above, middle, right, below) -> (left, above, PEdge, right, below))
 
 -- Plan for part two: take list of points
 -- get list of lowest points
@@ -72,7 +100,7 @@ main = do
 -- then find the lowest points for the new list of points! (add them
 -- recursively)
 -- if we have an empty list, return 0
--- ex1 :: [[Char]] -> Int
+ex1 :: [[Char]] -> Int
 ex1 input =
   let rows =
         map
@@ -101,13 +129,12 @@ ex1 input =
                col)
           rows
           (transpose cols)
-   -- in sum $
-   --    map (+ 1) $
-   --    concatMap (\row -> map getMiddle row) $
-   --    map (filter isLowPoint) combinedResult
-   in combinedResult
+   in sum $
+      map (+ 1) $
+      concatMap (\row -> map getMiddle row) $
+      map (filter isLowPoint) combinedResult
 
--- getPoints :: [[Char]] -> [Point]
+getPoints :: [[Char]] -> [Point]
 getPoints input =
   let rows =
         map
@@ -120,13 +147,8 @@ getPoints input =
              (\pos -> Direction PAbove pos)
              (\pos -> Direction PBelow pos))
           colInput
-      -- MAYBE(pierre): Figure out why this did not work.
-      -- combinedResult =
-      --   [ (left, above, middle, right, below)
-      --   | ((left, middle, right):row) <- rows
-      --   , ((above, _, below):col) <- transpose cols
-      --   ]
       combinedResult =
+        concat $
         zipWith
           (\row col ->
              zipWith
@@ -136,18 +158,18 @@ getPoints input =
                col)
           rows
           (transpose cols)
-   -- in sum $
-   --    map (+ 1) $
-   --    concatMap (\row -> map getMiddle row) $
-   --    map (filter isLowPoint) combinedResult
    in combinedResult
 
+-- getMiddle2 :: Point -> Maybe Int
+-- getMiddle2 (left, above, Direction _ val, right, below) = Just val
+-- getMiddle2 (left, above, _, right, below) = Nothing
 getMiddle :: Point -> Int
 getMiddle (left, above, Direction _ val, right, below) = val
 
 isLowPoint :: Point -> Bool
 isLowPoint (left, above, middle, right, below) =
-  all (== LT) $ map (compare middle) [left, above, right, below]
+  (all (== LT) $ map (compare middle) [left, above, right, below]) &&
+  middle /= PEdge
 
 parseRow ::
      (Int -> Position Int)
