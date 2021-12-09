@@ -23,6 +23,30 @@ type Row = [Maybe Int]
 
 type Col = Row
 
+-- prefix with P since Left and Right are already taken for Either!
+data Position a
+  = Direction PDirection a
+  | PEdge
+  deriving (Show, Read, Eq)
+
+data PDirection
+  = PLeft
+  | PAbove
+  | PRight
+  | PBelow
+  | PMiddle
+  deriving (Show, Read, Eq)
+
+instance (Ord a, Eq a) => Ord (Position a) where
+  compare (Direction _ x) (Direction _ y) = compare x y
+  compare (PEdge) (Direction _ y) = LT
+  compare (Direction _ y) (PEdge) = LT
+
+-- MAYBE(pierre): Is it possibile to define that first positon must be
+-- PLeft etc..?
+type Point
+   = (Position Int, Position Int, Position Int, Position Int, Position Int)
+
 {-|
 Initial Plan:
     - Build an easy to use data structure. Read input and build a grid from it.
@@ -35,59 +59,112 @@ tuples(Just above, point, Just below).
 right, Just below)
     - fold the grid to get the result (remember adding +1 for each point)
 -}
-main
-  -- input <- lines <$> readFile "inputDay9"
- = do
-  input <- lines <$> readFile "testInput"
+main = do
+  input <- lines <$> readFile "inputDay9"
+  -- print input
   print $ ex1 input
   return () -- ex1 :: [Int] -> Int
 
--- prefix with P since Left and Right are already taken for Either!
-data Position a
-  = PLeft a
-  | PAbove a
-  | PRight a
-  | PBelow a
-  | PMiddle a
-  | PEdge
-  deriving (Show, Read, Eq)
-
-instance (Ord a, Eq a) => Ord (Position a) where
-  -- compare (PLeft x) (PLeft y) = compare x y
-  -- TODO(pierre): how can I implement the ord contrain? Why do I get an error
-  -- for patterm matching with _?
-  compare (_ x) (_ y) = compare x y
-
--- MAYBE(pierre): Is it possibile to define that first positon must be
--- PLeft etc..?
-type Point
-   = (Position Int, Position Int, Position Int, Position Int, Position Int)
-
--- ex1 :: [[Char]] -> [[Maybe Int]]
+-- Plan for part two: take list of points
+-- get list of lowest points
+-- calc risk --> (sum map (+1) listLowestPoints)
+-- replace the lowest points in the list of points with their middle being an edge and
+-- then find the lowest points for the new list of points! (add them
+-- recursively)
+-- if we have an empty list, return 0
+-- ex1 :: [[Char]] -> Int
 ex1 input =
-  let rows = parseRow (\pos -> PLeft pos) (\pos -> PRight pos) input
+  let rows =
+        map
+          (parseRow (\pos -> Direction PLeft pos) (\pos -> Direction PRight pos))
+          input
+      colInput = transpose input
       cols =
-        parseRow (\pos -> PAbove pos) (\pos -> PBelow pos) $ transpose input
+        map
+          (parseRow
+             (\pos -> Direction PAbove pos)
+             (\pos -> Direction PBelow pos))
+          colInput
+      -- MAYBE(pierre): Figure out why this did not work.
+      -- combinedResult =
+      --   [ (left, above, middle, right, below)
+      --   | ((left, middle, right):row) <- rows
+      --   , ((above, _, below):col) <- transpose cols
+      --   ]
       combinedResult =
-        [ (left, above, middle, right, below)
-        | ((left, middle, right):row) <- rows
-        , ((above, _, below):col) <- (transpose cols)
-        ]
-   in filter isLowPoint combinedResult
-  where
-    isLowPoint :: Point -> Bool
-    isLowPoint (left, above, middle, right, below) = middle < left
-    parseRow ::
-         (Int -> Position Int)
-      -> (Int -> Position Int)
-      -> [[Char]]
-      -> [[(Position Int, Position Int, Position Int)]]
-    parseRow left right input =
-      let rows = map (\row -> map (\digit -> digitToInt digit) row) input
-       in map
-            (\row ->
-               zip3
-                 (PEdge : map left row)
-                 (map PMiddle row)
-                 ((drop 1 $ map right row) ++ [PEdge]))
-            rows
+        zipWith
+          (\row col ->
+             zipWith
+               (\(left, middle, right) (above, _, below) ->
+                  (left, above, middle, right, below))
+               row
+               col)
+          rows
+          (transpose cols)
+   -- in sum $
+   --    map (+ 1) $
+   --    concatMap (\row -> map getMiddle row) $
+   --    map (filter isLowPoint) combinedResult
+   in combinedResult
+
+-- getPoints :: [[Char]] -> [Point]
+getPoints input =
+  let rows =
+        map
+          (parseRow (\pos -> Direction PLeft pos) (\pos -> Direction PRight pos))
+          input
+      colInput = transpose input
+      cols =
+        map
+          (parseRow
+             (\pos -> Direction PAbove pos)
+             (\pos -> Direction PBelow pos))
+          colInput
+      -- MAYBE(pierre): Figure out why this did not work.
+      -- combinedResult =
+      --   [ (left, above, middle, right, below)
+      --   | ((left, middle, right):row) <- rows
+      --   , ((above, _, below):col) <- transpose cols
+      --   ]
+      combinedResult =
+        zipWith
+          (\row col ->
+             zipWith
+               (\(left, middle, right) (above, _, below) ->
+                  (left, above, middle, right, below))
+               row
+               col)
+          rows
+          (transpose cols)
+   -- in sum $
+   --    map (+ 1) $
+   --    concatMap (\row -> map getMiddle row) $
+   --    map (filter isLowPoint) combinedResult
+   in combinedResult
+
+getMiddle :: Point -> Int
+getMiddle (left, above, Direction _ val, right, below) = val
+
+isLowPoint :: Point -> Bool
+isLowPoint (left, above, middle, right, below) =
+  all (== LT) $ map (compare middle) [left, above, right, below]
+
+parseRow ::
+     (Int -> Position Int)
+  -> (Int -> Position Int)
+  -> [Char]
+  -> [(Position Int, Position Int, Position Int)]
+parseRow left right input =
+  let row = map (\digit -> digitToInt digit) input
+   in zip3
+        (PEdge : map left row)
+        (map (Direction PMiddle) row)
+        ((drop 1 $ map right row) ++ [PEdge]) -- original data structure, could not implement Ord!
+-- data Position a
+--   = PLeft a
+--   | PAbove a
+--   | PRight a
+--   | PBelow a
+--   | PMiddle a
+--   | PEdge
+--   deriving (Show, Read, Eq)
