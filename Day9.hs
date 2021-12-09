@@ -27,6 +27,7 @@ type Col = Row
 data Position a
   = Direction PDirection a
   | PEdge
+  | PBasin
   -- | PSkip -- added for ex2. Will be assigned to old lowest points.
   deriving (Show, Read, Eq)
 
@@ -40,13 +41,13 @@ data PDirection
 
 instance (Ord a, Eq a) => Ord (Position a) where
   compare (Direction _ x) (Direction _ y) = compare x y
-  compare (PEdge) (Direction _ y) = GT
+  compare (PEdge) (Direction _ y) = LT
   compare (Direction _ y) (PEdge) = LT
   compare PEdge PEdge = EQ
   -- this case was added for Part2. Required since we replace old lowest points
-  -- with edges.
-  -- compare PSkip _ = GT
-  -- compare _ PSkip = GT
+  -- with PBasin.
+  compare PBasin _ = GT
+  compare _ PBasin = LT
 
 -- MAYBE(pierre): Is it possibile to define that first positon must be
 -- PLeft etc..?
@@ -66,29 +67,46 @@ right, Just below)
     - fold the grid to get the result (remember adding +1 for each point)
 -}
 main = do
-  input <- lines <$> readFile "inputDay9"
-  -- print input
-  -- print $ ex1 input
+  input <- lines <$> readFile "testInput"
+  print $ ex1 input
   print $ ex2 input
+  -- print $ getPoints input
+  -- print $ filter isLowPoint (getPoints input)
+  -- print $ makeNewPoints (getPoints input)
   return () -- ex1 :: [Int] -> Int
 
--- ex2 :: [[Point]] -> Int
+-- ex2 :: [[Char]] -> Int
 ex2 input =
   let points = getPoints input
-   in calcResult points
-  where
-    getRisk = sum . map (\point -> (getMiddle point) + 1)
-    calcResult [] = 0
-    calcResult points =
-      let lowestPoints = filter isLowPoint points
-       in (getRisk lowestPoints) +
-          calcResult (makeNewPoints points lowestPoints)
+      lowPoints = filter isLowPoint points
+   in makeBasin points lowPoints
 
-makeNewPoints [] lowPoints = []
-makeNewPoints (point:points) lowPoints
-  | point `elem` lowPoints =
-    (makeMiddleEdge point) : makeNewPoints points lowPoints
-  | otherwise = makeNewPoints points lowPoints
+-- makeBasin :: [Point] -> Point -> [Int]
+-- makeBasin [] point = []
+makeBasin points lowPoints =
+  let newPointss = map (`addBasin` points) lowPoints
+      newLowPointss = map (filter isLowPoint) newPointss
+    -- maybe check if point is 9
+      -- newLowPoints = filter isLowPoint newPoints
+   in newPointss
+
+addBasin :: Point -> [Point] -> [Point]
+addBasin basinPoint =
+  map
+    (\x ->
+       if x == basinPoint
+         then markAsBasin x
+         else x)
+
+markAsBasin =
+  (\(left, above, middle, right, below) -> (left, above, PBasin, right, below))
+
+makeNewPoints :: [Point] -> [Point]
+makeNewPoints [] = []
+makeNewPoints (point:points)
+  | point `elem` (filter isLowPoint (point : points)) =
+    (makeMiddleEdge point) : makeNewPoints points
+  | otherwise = point : makeNewPoints points
 
 makeMiddleEdge =
   (\(left, above, middle, right, below) -> (left, above, PEdge, right, below))
