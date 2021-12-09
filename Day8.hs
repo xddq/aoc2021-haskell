@@ -40,16 +40,8 @@ Initial Plan:
     5) for ex1 use sum of values for the keys 1,4,7,8 from digitCountMap
     6) for ex2 (don't know task yet) but probably take sum of the value of all our keys.
 -}
-main = do
-  lines <- parseFile
-  -- print $ decodeSegments firstDigits M.empty
-  print $ ex1 lines M.empty
-  return ()
-
 parseFile :: IO [([String], [String])]
-parseFile
-  -- input <- readFile "inputDay8"
- = do
+parseFile = do
   input <- readFile "inputDay8"
   let seperatedLines = map (splitOn "|") $ lines input
   return $
@@ -57,7 +49,9 @@ parseFile
       (\line -> (words $ head $ line, words $ head $ drop 1 $ line))
       seperatedLines
 
-type Segment = String
+type Segment = [String]
+
+type Output = [String]
 
 type Count = Int
 
@@ -65,35 +59,67 @@ type Digit = Int
 
 type Decoding = String
 
--- ex1 :: [[Segment]] -> [[Segment]] -> Count
-ex1 :: [([String], [String])] -> Map Digit Count -> Count
+ex1 :: [(Segment, Output)] -> Map Digit Count -> Count
 ex1 [] _ = 0
 ex1 ((segment, output):rest) digitCountMap =
-  let decodings = decodeSegments segment M.empty
+  let decodings = decodeSegments1 segment M.empty
       decodingsList = M.toList decodings
    in ex1 rest digitCountMap +
-      (sum $ map (countMatches decodingsList digitCountMap) output)
+      (sum $ map (countMatches1 decodingsList digitCountMap) output)
 
-countMatches [] _ _ = 0
-countMatches ((_, decoding):decodings) digitCountMap val
+countMatches1 [] _ _ = 0
+countMatches1 ((_, decoding):decodings) digitCountMap val
   | intersectMatch decoding val = 1
-  | otherwise = countMatches decodings digitCountMap val
+  | otherwise = countMatches1 decodings digitCountMap val
+
+main = do
+  lines <- parseFile
+  print $ ex1 lines M.empty
+  print $ ex2 lines
+  return ()
+
+ex2 :: [(Segment, Output)] -> Count
+ex2 [] = 0
+ex2 ((segment, output):rest) =
+  let decodings = decodeSegments2 segment M.empty
+   in (read $ concat $ map (decode decodings) output) + ex2 rest
+
+decode :: Map Digit Decoding -> String -> String
+decode decoding val =
+  let keys = M.keys decoding
+      resultString =
+        foldl
+          (\result key ->
+             case M.lookup key decoding of
+               Just x ->
+                 if intersectMatch x val
+                   then result ++ show key
+                   else result)
+          ""
+          keys
+   in resultString
 
 intersectMatch x y =
   let intersectLength = length (x `intersect` y)
    in intersectLength == length x && intersectLength == length y
 
-decodeSegments :: [Segment] -> Map Digit Decoding -> Map Digit Decoding
-decodeSegments segments decodings =
+decodeSegments1 :: Segment -> Map Digit Decoding -> Map Digit Decoding
+decodeSegments1 segments decodings =
   let uniqueDecodings = inferUniqueSegments segments decodings
-  -- MAYBE(pierre): figure out how to do in parallel?
-      -- length5Segments = filter (\segment -> length segment == 5) segments
-      -- newDecodings = inferLength5Segments length5Segments uniqueDecodings
-      -- length6Segments = filter (\segment -> length segment == 6) segments
-      -- finalDecodings = inferLength6Segments length6Segments newDecodings
    in uniqueDecodings
 
-inferUniqueSegments :: [Segment] -> Map Digit Decoding -> Map Digit Decoding
+decodeSegments2 :: Segment -> Map Digit Decoding -> Map Digit Decoding
+decodeSegments2 segments decodings =
+  let uniqueDecodings = inferUniqueSegments segments decodings
+  -- MAYBE(pierre): figure out how to do in parallel?
+      length5Segments = filter (\segment -> length segment == 5) segments
+      newDecodings = inferLength5Segments length5Segments uniqueDecodings
+      length6Segments = filter (\segment -> length segment == 6) segments
+      finalDecodings = inferLength6Segments length6Segments newDecodings
+   in finalDecodings
+
+-- Infers uniquely idenfitiable segments based on their length.
+inferUniqueSegments :: Segment -> Map Digit Decoding -> Map Digit Decoding
 inferUniqueSegments [] decodings = decodings
 inferUniqueSegments (segment:segments) decodings
   -- unique for digit 1
@@ -109,32 +135,33 @@ inferUniqueSegments (segment:segments) decodings
   | length segment == 7 =
     inferUniqueSegments segments (M.insert 8 segment decodings)
   | otherwise = inferUniqueSegments segments decodings
+
 -- Infer length 5 segments([2,3,5]) based on the amount of elements that are left after
 -- intersection with uniquely identifiable segments([1,4,7,8].
--- inferLength5Segments :: [Segment] -> Map Digit Decoding -> Map Digit Decoding
--- inferLength5Segments [] decodings = decodings
--- inferLength5Segments (segment:segments) decodings
---   -- infers 3
---   | length (segment `intersect` (decodings M.! 7)) == 3 &&
---       length (segment `intersect` (decodings M.! 1)) == 2 =
---     inferLength5Segments segments $ M.insert 3 segment decodings
---   -- infers 5
---   | length (segment `intersect` (decodings M.! 7)) == 2 &&
---       length (segment `intersect` (decodings M.! 4)) == 3 =
---     inferLength5Segments segments $ M.insert 5 segment decodings
---   -- infers
---   | otherwise = inferLength5Segments segments $ M.insert 2 segment decodings
---
--- -- Infer length 6 segments([0,6,9]) based on the amount of elements that are left after
--- -- intersection with uniquely identifiable segments([1,4,7,8].
--- inferLength6Segments :: [Segment] -> Map Digit Decoding -> Map Digit Decoding
--- inferLength6Segments [] decodings = decodings
--- inferLength6Segments (segment:segments) decodings
---   -- infers 6
---   | length (segment `intersect` (decodings M.! 1)) == 1 =
---     inferLength6Segments segments $ M.insert 6 segment decodings
---   -- infers 9
---   | length (segment `intersect` (decodings M.! 4)) == 4 =
---     inferLength6Segments segments $ M.insert 9 segment decodings
---   -- infers 0
---   | otherwise = inferLength6Segments segments $ M.insert 0 segment decodings
+inferLength5Segments :: Segment -> Map Digit Decoding -> Map Digit Decoding
+inferLength5Segments [] decodings = decodings
+inferLength5Segments (segment:segments) decodings
+  -- infers 3
+  | length (segment `intersect` (decodings M.! 7)) == 3 &&
+      length (segment `intersect` (decodings M.! 1)) == 2 =
+    inferLength5Segments segments $ M.insert 3 segment decodings
+  -- infers 5
+  | length (segment `intersect` (decodings M.! 7)) == 2 &&
+      length (segment `intersect` (decodings M.! 4)) == 3 =
+    inferLength5Segments segments $ M.insert 5 segment decodings
+  -- infers
+  | otherwise = inferLength5Segments segments $ M.insert 2 segment decodings
+
+-- Infer length 6 segments([0,6,9]) based on the amount of elements that are left after
+-- intersection with uniquely identifiable segments([1,4,7,8].
+inferLength6Segments :: Segment -> Map Digit Decoding -> Map Digit Decoding
+inferLength6Segments [] decodings = decodings
+inferLength6Segments (segment:segments) decodings
+  -- infers 6
+  | length (segment `intersect` (decodings M.! 1)) == 1 =
+    inferLength6Segments segments $ M.insert 6 segment decodings
+  -- infers 9
+  | length (segment `intersect` (decodings M.! 4)) == 4 =
+    inferLength6Segments segments $ M.insert 9 segment decodings
+  -- infers 0
+  | otherwise = inferLength6Segments segments $ M.insert 0 segment decodings
