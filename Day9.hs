@@ -14,13 +14,14 @@ count as lower).
         - risk level of a low point is 1 plus its height
         - get the sum of risk levels of all low points.
 -}
--- for using Map. src for notation:
--- https://hackage.haskell.org/package/containers-0.4.0.0/docs/Data-Map.html
-import Data.Map (Map)
-import qualified Data.Map as M
+-- imports only digitToInt from Data.Char
+-- https://wiki.haskell.org/Import
+import Data.Char (digitToInt)
+import Data.List (transpose)
 
--- for splitOn
-import Data.List.Split
+type Row = [Maybe Int]
+
+type Col = Row
 
 {-|
 Initial Plan:
@@ -34,12 +35,59 @@ tuples(Just above, point, Just below).
 right, Just below)
     - fold the grid to get the result (remember adding +1 for each point)
 -}
-main = do
-  input <- lines <$> readFile "inputDay9"
-  -- NOTE(pierre): read does infer it's type by knowing ex1 takes list of Int
-  print $ ex1 $ read input
-  -- print $ ex2 input
-  return ()
+main
+  -- input <- lines <$> readFile "inputDay9"
+ = do
+  input <- lines <$> readFile "testInput"
+  print $ ex1 input
+  return () -- ex1 :: [Int] -> Int
 
-ex1 :: [Int] -> Int
-ex1 row -> 1
+-- prefix with P since Left and Right are already taken for Either!
+data Position a
+  = PLeft a
+  | PAbove a
+  | PRight a
+  | PBelow a
+  | PMiddle a
+  | PEdge
+  deriving (Show, Read, Eq)
+
+instance (Ord a, Eq a) => Ord (Position a) where
+  -- compare (PLeft x) (PLeft y) = compare x y
+  -- TODO(pierre): how can I implement the ord contrain? Why do I get an error
+  -- for patterm matching with _?
+  compare (_ x) (_ y) = compare x y
+
+-- MAYBE(pierre): Is it possibile to define that first positon must be
+-- PLeft etc..?
+type Point
+   = (Position Int, Position Int, Position Int, Position Int, Position Int)
+
+-- ex1 :: [[Char]] -> [[Maybe Int]]
+ex1 input =
+  let rows = parseRow (\pos -> PLeft pos) (\pos -> PRight pos) input
+      cols =
+        parseRow (\pos -> PAbove pos) (\pos -> PBelow pos) $ transpose input
+      combinedResult =
+        [ (left, above, middle, right, below)
+        | ((left, middle, right):row) <- rows
+        , ((above, _, below):col) <- (transpose cols)
+        ]
+   in filter isLowPoint combinedResult
+  where
+    isLowPoint :: Point -> Bool
+    isLowPoint (left, above, middle, right, below) = middle < left
+    parseRow ::
+         (Int -> Position Int)
+      -> (Int -> Position Int)
+      -> [[Char]]
+      -> [[(Position Int, Position Int, Position Int)]]
+    parseRow left right input =
+      let rows = map (\row -> map (\digit -> digitToInt digit) row) input
+       in map
+            (\row ->
+               zip3
+                 (PEdge : map left row)
+                 (map PMiddle row)
+                 ((drop 1 $ map right row) ++ [PEdge]))
+            rows
