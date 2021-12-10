@@ -37,7 +37,7 @@ right, Just below)
 main
   -- input <- lines <$> readFile "testInput"
  = do
-  input <- lines <$> readFile "inputDay9"
+  input <- lines <$> readFile "testInput"
   print $ ex1 input
   print $ ex2 input
   return ()
@@ -62,28 +62,34 @@ getRisk grid (x, y) =
 ex2 input =
   let grid = getGrid input
       lowPoints = getLowPoints grid
-      firstPoint = head lowPoints
-      secondPoint = head $ drop 1 $ lowPoints
-   -- in makeBasin grid [(0, 0), (9, 9)]
-      -- product $
-      -- take 3 $
-   in sortBy (flip compare) $
-      map (\point -> length $ makeBasin grid [point]) lowPoints
+      basins = map (\point -> makeBasin grid [point]) lowPoints
+      -- result = product $ take 3 $ sortBy (flip compare) $ map length basins
+      result = product $ take 3 $ sortBy (flip compare) $ map length basins
+   in result
 
 makeBasin :: Grid -> [Point] -> [Point]
-makeBasin grid visitedPoints =
+makeBasin grid visitedPoints
+  -- gets all neighbours for all visited points / basin points of the current,single basin
+ =
   let neighbours =
         nub $
         foldl'
           (\points point -> points ++ getNeighbouringPoints grid point)
           []
           visitedPoints
-      newGrid = foldl (\acc point -> insertValue acc point 9) grid visitedPoints
+      -- only use points that are not already inside our basin
       allowedNeighbours =
         filter (\neighbour -> not $ neighbour `elem` visitedPoints) neighbours
+      -- makes sure visitedPoints/ basin points are not lowest points anymore by
+      -- setting old points to value 9.
+      newGrid = foldl (\acc point -> insertValue acc point 9) grid visitedPoints
+      -- continue only with the neighbours which now are lowpoints
       lowNeighbours = filter (isLowPoint newGrid) allowedNeighbours
+    -- stop if we have no new low points / basins. return all points inside
+    -- basin.
    in if null lowNeighbours
         then visitedPoints
+        -- increase basin size by repeating process
         else makeBasin newGrid (lowNeighbours ++ visitedPoints)
 
 getNeighbouringPoints :: Grid -> Point -> [Point]
