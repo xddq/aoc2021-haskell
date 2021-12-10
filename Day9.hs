@@ -35,9 +35,9 @@ right, Just below)
     - fold the grid to get the result (remember adding +1 for each point)
 -}
 main = do
-  input <- lines <$> readFile "inputDay9"
+  input <- lines <$> readFile "testInput"
   -- input <- lines <$> readFile "inputDay9"
-  print $ ex1 input
+  -- print $ ex1 input
   print $ ex2 input
   return ()
 
@@ -45,10 +45,10 @@ type Grid = Map Int (Map Int Int)
 
 type Point = (Int, Int)
 
-ex1 input =
-  let grid = getGrid input
-      lowPoints = getLowPoints grid
-   in foldl (\risk point -> risk + getRisk grid point) 0 $ getLowPoints grid
+ex1 input = undefined
+  -- let grid = getGrid input
+  --     lowPoints = getLowPoints grid
+  --  in foldl (\risk point -> risk + getRisk grid point) 0 $ getLowPoints grid
 
 getRisk :: Grid -> Point -> Int
 getRisk grid (x, y) =
@@ -57,15 +57,37 @@ getRisk grid (x, y) =
       case M.lookup y row of
         Just val -> val + 1
 
-ex2 :: [[Char]] -> Int
+-- ex2 :: [[Char]] -> Int
 ex2 input =
-  let grid = getGrid input
+  let grid = getGrid' input
       lowPoints = getLowPoints grid
    -- currently no clue why we have duplicated. just use nub for now.
       basins = map (nub . (makeBasin grid [])) lowPoints
-      largestBasins = sortBy (flip compare) $ map length basins
-      largestThree = take 3 largestBasins
-   in foldl (*) 1 largestThree
+      -- largestBasins = sortBy (flip compare) $ map length basins
+      -- largestThree = take 3 largestBasins
+   -- in foldl (*) 1 largestThree
+   in basins
+
+-- getGrid :: [[Char]] -> Grid
+getGrid' input =
+  let rows = map (\row -> map digitToInt row) input
+      -- transforms input to list of rows with each row having their list of
+      -- (key,value).
+      colCount = length $ transpose rows
+      rowCount = length rows
+      resultRows =
+        map (\key -> map (\val -> (key, (val !! key))) rows) [0 .. colCount - 1]
+      resultCols = transpose resultRows
+      grid =
+        foldl
+          (\newMap key ->
+             M.insert
+               key
+               (makeMap $ getKeysAndValues (resultCols !! key))
+               newMap)
+          M.empty
+          [0 .. (length resultCols) - 1]
+   in grid
 
 makeBasin :: Grid -> [Point] -> Point -> [Point]
 makeBasin grid visitedPoints point
@@ -92,9 +114,13 @@ getNeighbouringPoints grid (x, y) =
 
 getLowPoints :: Grid -> [Point]
 getLowPoints grid =
-  let keyCount = length $ M.keys grid
-      rowRange = [0 .. keyCount - 1]
-      colRange = rowRange
+  let rowCount = length $ M.keys grid
+      rowRange = [0 .. rowCount - 1]
+      colCount =
+        case M.lookup 0 grid of
+          Just col -> length $ M.keys col
+          Nothing -> error "could not get colCount at getLowPoints."
+      colRange = [0 .. colCount - 1]
       points =
         filter (\tuple -> fst tuple /= -1) $
         concatMap
