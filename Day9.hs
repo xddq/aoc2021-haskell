@@ -34,10 +34,11 @@ tuples(Just above, point, Just below).
 right, Just below)
     - fold the grid to get the result (remember adding +1 for each point)
 -}
-main = do
-  input <- lines <$> readFile "testInput"
-  -- input <- lines <$> readFile "inputDay9"
-  -- print $ ex1 input
+main
+  -- input <- lines <$> readFile "testInput"
+ = do
+  input <- lines <$> readFile "inputDay9"
+  print $ ex1 input
   print $ ex2 input
   return ()
 
@@ -45,10 +46,11 @@ type Grid = Map Int (Map Int Int)
 
 type Point = (Int, Int)
 
--- ex1 input =
---   let grid = getGrid input
---       lowPoints = getLowPoints grid
---    in foldl (\risk point -> risk + getRisk grid point) 0 $ getLowPoints grid
+ex1 input =
+  let grid = getGrid input
+      lowPoints = getLowPoints grid
+   in foldl (\risk point -> risk + getRisk grid point) 0 $ getLowPoints grid
+
 getRisk :: Grid -> Point -> Int
 getRisk grid (x, y) =
   case M.lookup x grid of
@@ -56,16 +58,16 @@ getRisk grid (x, y) =
       case M.lookup y row of
         Just val -> val + 1
 
-ex2 :: [[Char]] -> Int
+-- ex2 :: [[Char]] -> Int
 ex2 input =
   let grid = getGrid input
       lowPoints = getLowPoints grid
       firstPoint = head lowPoints
       secondPoint = head $ drop 1 $ lowPoints
    -- in makeBasin grid [(0, 0), (9, 9)]
-   in product $
-      take 3 $
-      sortBy (flip compare) $
+      -- product $
+      -- take 3 $
+   in sortBy (flip compare) $
       map (\point -> length $ makeBasin grid [point]) lowPoints
 
 makeBasin :: Grid -> [Point] -> [Point]
@@ -144,8 +146,8 @@ insertValue grid (x, y) val =
 
 getValue :: Grid -> Point -> Int
 getValue grid (x, y)
-  -- default to a value which is garantueed to be higher than the other cells
-  -- values if we are outside of the grid (lookup will return Nothing)
+  -- default to 9 if we are outside of grid to make sure comparing against edges
+  -- will result in a low point (if the low point is < 9)
  =
   case M.lookup x grid of
     Just col ->
