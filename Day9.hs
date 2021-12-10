@@ -20,7 +20,7 @@ import qualified Data.Map as M
 -- imports only digitToInt from Data.Char
 -- https://wiki.haskell.org/Import
 import Data.Char (digitToInt)
-import Data.List (nub, sortBy, transpose)
+import Data.List (foldl', nub, sortBy, transpose)
 
 {-|
 Initial Plan:
@@ -45,11 +45,10 @@ type Grid = Map Int (Map Int Int)
 
 type Point = (Int, Int)
 
-ex1 input = undefined
-  -- let grid = getGrid input
-  --     lowPoints = getLowPoints grid
-  --  in foldl (\risk point -> risk + getRisk grid point) 0 $ getLowPoints grid
-
+-- ex1 input =
+--   let grid = getGrid input
+--       lowPoints = getLowPoints grid
+--    in foldl (\risk point -> risk + getRisk grid point) 0 $ getLowPoints grid
 getRisk :: Grid -> Point -> Int
 getRisk grid (x, y) =
   case M.lookup x grid of
@@ -57,59 +56,43 @@ getRisk grid (x, y) =
       case M.lookup y row of
         Just val -> val + 1
 
--- ex2 :: [[Char]] -> Int
+ex2 :: [[Char]] -> Int
 ex2 input =
-  let grid = getGrid' input
+  let grid = getGrid input
       lowPoints = getLowPoints grid
-   -- currently no clue why we have duplicated. just use nub for now.
-      basins = map (nub . (makeBasin grid [])) lowPoints
-      -- largestBasins = sortBy (flip compare) $ map length basins
-      -- largestThree = take 3 largestBasins
-   -- in foldl (*) 1 largestThree
-   in basins
+      firstPoint = head lowPoints
+      secondPoint = head $ drop 1 $ lowPoints
+   -- in makeBasin grid [(0, 0), (9, 9)]
+   in product $
+      take 3 $
+      sortBy (flip compare) $
+      map (\point -> length $ makeBasin grid [point]) lowPoints
 
--- getGrid :: [[Char]] -> Grid
-getGrid' input =
-  let rows = map (\row -> map digitToInt row) input
-      -- transforms input to list of rows with each row having their list of
-      -- (key,value).
-      colCount = length $ transpose rows
-      rowCount = length rows
-      resultRows =
-        map (\key -> map (\val -> (key, (val !! key))) rows) [0 .. colCount - 1]
-      resultCols = transpose resultRows
-      grid =
-        foldl
-          (\newMap key ->
-             M.insert
-               key
-               (makeMap $ getKeysAndValues (resultCols !! key))
-               newMap)
-          M.empty
-          [0 .. (length resultCols) - 1]
-   in grid
-
-makeBasin :: Grid -> [Point] -> Point -> [Point]
-makeBasin grid visitedPoints point
-  | point `elem` visitedPoints = visitedPoints
-  | otherwise =
-    if isLowPoint grid point
-      then let possibleBasins = getNeighbouringPoints grid point
-               newGrid = insertValue grid point ((getValue grid point) + 10)
-            in point :
-               concatMap
-                 (makeBasin newGrid (point : visitedPoints))
-                 possibleBasins
-      else []
+makeBasin :: Grid -> [Point] -> [Point]
+makeBasin grid visitedPoints =
+  let neighbours =
+        nub $
+        foldl'
+          (\points point -> points ++ getNeighbouringPoints grid point)
+          []
+          visitedPoints
+      newGrid = foldl (\acc point -> insertValue acc point 9) grid visitedPoints
+      allowedNeighbours =
+        filter (\neighbour -> not $ neighbour `elem` visitedPoints) neighbours
+      lowNeighbours = filter (isLowPoint newGrid) allowedNeighbours
+   in if null lowNeighbours
+        then visitedPoints
+        else makeBasin newGrid (lowNeighbours ++ visitedPoints)
 
 getNeighbouringPoints :: Grid -> Point -> [Point]
 getNeighbouringPoints grid (x, y) =
-  let keyCount = length $ M.keys grid
-      rowRange = [0 .. keyCount - 1]
-      colRange = rowRange
+  let colCount = length $ M.keys grid
+      rowCount =
+        case M.lookup 0 grid of
+          Just col -> length $ M.keys col
       points = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
    in filter
-        (\(x, y) -> x > -1 && x < keyCount && y > -1 && y < keyCount)
+        (\(x, y) -> x > -1 && x < colCount && y > -1 && y < rowCount)
         points
 
 getLowPoints :: Grid -> [Point]
@@ -168,8 +151,8 @@ getValue grid (x, y)
     Just col ->
       case M.lookup y col of
         Just val -> val
-        Nothing -> 1000
-    Nothing -> 1000
+        Nothing -> 9
+    Nothing -> 9
 
 -- Builds a grid consisting of a Map of Maps. Using this we can lookup the
 -- values with a given x and y value.
@@ -178,17 +161,11 @@ getGrid input =
   let rows = map (\row -> map digitToInt row) input
       -- transforms input to list of rows with each row having their list of
       -- (key,value).
-      result =
-        map
-          (\key -> map (\val -> (key, (val !! key))) rows)
-          [0 .. (length rows) - 1]
-      resultCols = transpose result
-      firstCol = head resultCols
-      (keys, values) =
-        foldr
-          (\(key, value) (keys, values) -> (key : keys, value : values))
-          ([], [])
-          firstCol
+      colCount = length $ transpose rows
+      rowCount = length rows
+      resultRows =
+        map (\key -> map (\val -> (key, (val !! key))) rows) [0 .. colCount - 1]
+      resultCols = transpose resultRows
       grid =
         foldl
           (\newMap key ->
