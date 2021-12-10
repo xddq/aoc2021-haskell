@@ -37,7 +37,7 @@ right, Just below)
 main
   -- input <- lines <$> readFile "testInput"
  = do
-  input <- lines <$> readFile "testInput"
+  input <- lines <$> readFile "inputDay9"
   print $ ex1 input
   print $ ex2 input
   return ()
@@ -105,13 +105,13 @@ getNeighbouringPoints grid (x, y) =
 
 getLowPoints :: Grid -> [Point]
 getLowPoints grid =
-  let rowCount = length $ M.keys grid
-      rowRange = [0 .. rowCount - 1]
-      colCount =
+  let colCount = length $ M.keys grid
+      colRange = [0 .. colCount - 1]
+      rowCount =
         case M.lookup 0 grid of
           Just col -> length $ M.keys col
           Nothing -> error "could not get colCount at getLowPoints."
-      colRange = [0 .. colCount - 1]
+      rowRange = [0 .. rowCount - 1]
       points =
         filter (\tuple -> fst tuple /= -1) $
         concatMap
@@ -121,8 +121,8 @@ getLowPoints grid =
                   if isLowPoint grid (x, y)
                     then (x, y)
                     else (-1, -1))
-               colRange)
-          rowRange
+               rowRange)
+          colRange
    in points
 
 isLowPoint :: Grid -> Point -> Bool
@@ -132,7 +132,9 @@ isLowPoint grid (x, y)
   case M.lookup x grid of
     Just col ->
       case M.lookup y col of
-        Just val ->
+        Just val
+          -- values of 9 can not make a basin
+         ->
           val < 9 &&
           (all
              (getValue grid (x, y) <)
