@@ -22,18 +22,6 @@ import qualified Data.Map as M
 import Data.Char (digitToInt)
 import Data.List (foldl', nub, sortBy, transpose)
 
-{-|
-Initial Plan:
-    - Build an easy to use data structure. Read input and build a grid from it.
-    - Use zipping to create the following lists:
-    - Use all rows of that grid to create a list of tuples (Just left, point,
-Just right).
-    - Use all cols of that grid (with transpose grid) to create a list of
-tuples(Just above, point, Just below).
-    - Zip these to get a list of tuples with (Just left, Just above, point, Just
-right, Just below)
-    - fold the grid to get the result (remember adding +1 for each point)
--}
 main
   -- input <- lines <$> readFile "testInput"
  = do
@@ -58,39 +46,41 @@ getRisk grid (x, y) =
       case M.lookup y row of
         Just val -> val + 1
 
--- ex2 :: [[Char]] -> Int
+ex2 :: [[Char]] -> Int
 ex2 input =
   let grid = getGrid input
       lowPoints = getLowPoints grid
       basins = map (\point -> makeBasin grid [point]) lowPoints
-      -- result = product $ take 3 $ sortBy (flip compare) $ map length basins
-      result = product $ take 3 $ sortBy (flip compare) $ map length basins
-   in result
+   in product $ take 3 $ sortBy (flip compare) $ map length basins
+
+-- Value of points at the edges (outside of our grid).
+edgeValue = 100
+
+-- Points with this value do not form a basin.
+noBasinValue = 9
 
 makeBasin :: Grid -> [Point] -> [Point]
-makeBasin grid visitedPoints
-  -- gets all neighbours for all visited points / basin points of the current,single basin
- =
+makeBasin grid visitedPoints =
   let neighbours =
         nub $
         foldl'
           (\points point -> points ++ getNeighbouringPoints grid point)
           []
           visitedPoints
+      filteredNeighbours =
+        filter
+          (\point ->
+             (getValue grid point) /= noBasinValue &&
+             (getValue grid point) /= edgeValue)
+          neighbours
       -- only use points that are not already inside our basin
       allowedNeighbours =
-        filter (\neighbour -> not $ neighbour `elem` visitedPoints) neighbours
-      -- makes sure visitedPoints/ basin points are not lowest points anymore by
-      -- setting old points to value 9.
-      newGrid = foldl (\acc point -> insertValue acc point 9) grid visitedPoints
-      -- continue only with the neighbours which now are lowpoints
-      lowNeighbours = filter (isLowPoint newGrid) allowedNeighbours
-    -- stop if we have no new low points / basins. return all points inside
-    -- basin.
-   in if null lowNeighbours
+        filter
+          (\neighbour -> not $ neighbour `elem` visitedPoints)
+          filteredNeighbours
+   in if null allowedNeighbours
         then visitedPoints
-        -- increase basin size by repeating process
-        else makeBasin newGrid (lowNeighbours ++ visitedPoints)
+        else makeBasin grid (allowedNeighbours ++ visitedPoints)
 
 getNeighbouringPoints :: Grid -> Point -> [Point]
 getNeighbouringPoints grid (x, y) =
@@ -127,15 +117,12 @@ getLowPoints grid =
 
 isLowPoint :: Grid -> Point -> Bool
 isLowPoint grid (x, y)
-    -- checks if cells around have lower value.
+    -- checks if we have lower value than all 4 cells around us.
  =
   case M.lookup x grid of
     Just col ->
       case M.lookup y col of
-        Just val
-          -- values of 9 can not make a basin
-         ->
-          val < 9 &&
+        Just val ->
           (all
              (getValue grid (x, y) <)
              [ getValue grid (x - 1, y)
@@ -152,17 +139,16 @@ insertValue grid (x, y) val =
           let newInnerMap = M.insert y val innerMap
            in M.insert x newInnerMap grid
 
+-- gets value for an entry in our grid/map of maps. If we are looking outside of
+-- our grid, return the edge value.
 getValue :: Grid -> Point -> Int
-getValue grid (x, y)
-  -- default to 9 if we are outside of grid to make sure comparing against edges
-  -- will result in a low point (if the low point is < 9)
- =
+getValue grid (x, y) =
   case M.lookup x grid of
     Just col ->
       case M.lookup y col of
         Just val -> val
-        Nothing -> 9
-    Nothing -> 9
+        Nothing -> edgeValue
+    Nothing -> edgeValue
 
 -- Builds a grid consisting of a Map of Maps. Using this we can lookup the
 -- values with a given x and y value.
