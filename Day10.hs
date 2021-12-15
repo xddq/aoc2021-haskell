@@ -17,17 +17,11 @@ Example data:
     }: 1197 points.
     >: 25137 points.
 -}
-import Data.Map (Map)
-import qualified Data.Map as M
-
 -- using state monad to keep track of what we have parsed as our state.
 -- src: http://learnyouahaskell.com/for-a-few-monads-more
 import Control.Monad.State
-import Data.Either (fromLeft, isLeft, isRight)
+import Data.Either (lefts, rights)
 
--- imports only digitToInt from Data.Char
--- https://wiki.haskell.org/Import
-import Data.Char (digitToInt, toUpper)
 import Data.List (sort)
 
 main
@@ -39,14 +33,9 @@ main
   return ()
 
 ex1 :: [[Char]] -> Int
-ex1 =
-  foldl
-    (\score val ->
-       case val of
-         Right _ -> score
-         Left x -> score + getScoreSyntaxChecker x)
-    0 .
-  map parseLine
+ex1 input =
+  foldl (\score val -> score + (getScore val calculateSyntaxScore)) 0 $
+  lefts $ map parseLine input
 
 -- Using foldM to chain the result from the previous parse result to the next
 -- parse call.
@@ -64,36 +53,33 @@ parse parsed nextChar
       then Right $ init parsed
       else Left nextChar
 
+-- calculates score for the autocomplete tooling
+ex2 :: [[Char]] -> Int
+ex2 input = getMiddle $ sort $ map scoreStrings $ rights $ map parseLine input
+  where
+    scoreStrings :: [Char] -> Int
+    scoreStrings =
+      foldl
+        (\result char -> 5 * result + (getScore char calculateAutocompleteScore))
+        0
+
+-- Function which takes a char and a function which maps a char to a value. Used
+-- for calculating syntax and autocomplete Scores.
+getScore :: Char -> (Char -> Int) -> Int
+getScore x f = f x
+
 -- calculates score for a character for syntax checker (part 1)
-getScoreSyntaxChecker :: Char -> Int
-getScoreSyntaxChecker x
+calculateSyntaxScore :: Char -> Int
+calculateSyntaxScore x
   | x == ')' = 3
   | x == ']' = 57
   | x == '}' = 1197
   | x == '>' = 25137
   | otherwise = error $ "symbol does not exist. Got the symbol: " ++ [x]
 
--- calculates score for the autocomplete tooling
-ex2 :: [[Char]] -> Int
-ex2 =
-  getMiddle .
-  sort .
-  map scoreStrings .
-  filter (not . null) .
-  map
-    (\line ->
-       case line of
-         Left _ -> []
-         Right x -> complete x) .
-  map parseLine
-  where
-    scoreStrings :: [Char] -> Int
-    scoreStrings =
-      foldl (\result char -> 5 * result + getScoreAutocomplete char) 0
-
 -- calculates scores for autocomplete tools :D (part 2)
-getScoreAutocomplete :: Char -> Int
-getScoreAutocomplete x
+calculateAutocompleteScore :: Char -> Int
+calculateAutocompleteScore x
   | x == ')' = 1
   | x == ']' = 2
   | x == '}' = 3
