@@ -32,7 +32,7 @@ import qualified Data.Map as M
 -- imports only digitToInt from Data.Char
 -- https://wiki.haskell.org/Import
 import Data.Char (digitToInt)
-import Data.List (foldl', nub, transpose)
+import Data.List
 
 main
   -- input <- lines <$> readFile "testInput"
@@ -47,42 +47,52 @@ iterations = 2
 -- ex1 :: [[Char]] -> Int
 ex1 input =
   let grid = getGrid input
-      flashingPoints = getFlashingPoints grid
-   -- in increaseValues grid $ getAllPulsatingPoints grid flashingPoints
-   in foldl
-        (\grid _ ->
-           increaseValues grid $
-           getAllPulsatingPoints grid $ getFlashingPoints grid)
-        grid
-        [1 .. iterations]
-  where
-    increaseValues :: Grid -> [Point] -> Grid
-    increaseValues =
-      foldl
-        (\grid point ->
-           insertValue grid point (increaseValue $ getValue grid point))
+   -- in pulsate grid []
+   in pulsate grid
+
+increaseValues :: Grid -> [Point] -> Grid
+increaseValues =
+  foldl
+    (\grid point -> insertValue grid point (increaseValue $ getValue grid point))
+
+resetPulsatedValues :: Grid -> [Point] -> Grid
+resetPulsatedValues = foldl (\grid point -> insertValue grid point 0)
+
+getPulsatedValues :: Grid -> [Point]
+getPulsatedValues grid =
+  let colCount = length $ M.keys grid
+      colRange = [0 .. colCount - 1]
+      rowCount =
+        case M.lookup 0 grid of
+          Just col -> length $ M.keys col
+          Nothing -> error "could not get colCount at getLowPoints."
+      rowRange = [0 .. rowCount - 1]
+      points =
+        filter (\tuple -> fst tuple /= -1) $
+        concatMap
+          (\x ->
+             map
+               (\y ->
+                  if getValue grid (x, y) == pulsateValue
+                    then (x, y)
+                    else (-1, -1))
+               rowRange)
+          colRange
+   in points
 
 -- recursively gets flashing points until the amount of new flashing points is
 -- zero.
-getAllPulsatingPoints grid pulsatingPoints =
-  let neighbours =
-        nub $
-        foldl'
-          (\points point -> points ++ getNeighbouringPoints grid point)
-          []
-          pulsatingPoints
-      filteredNeighbours =
-        filter (\point -> (getValue grid point) /= edgeValue) neighbours
-      allowedNeighbours =
-        filter
-          (\neighbour -> not $ neighbour `elem` pulsatingPoints)
-          filteredNeighbours
-   in if null allowedNeighbours
-        then pulsatingPoints
-        else getAllPulsatingPoints grid (allowedNeighbours ++ pulsatingPoints)
+-- getAllPulsatingPoints :: Grid -> [Point] -> [Point]
+pulsate grid =
+  let pulsatingPoints = getPulsatingPoints grid
+   in if null pulsatingPoints
+        then grid
+        -- TODO: get all pulsating points and all neighbours. Then increase all
+        -- these points.
+        else pulsate (increaseValues grid pulsatingPoints)
 
 increaseValue value
-  | value == 9 = 0
+  | value == pulsateValue || value == 9 = pulsateValue
   | value == edgeValue = edgeValue
   | otherwise = value + 1
 
@@ -93,7 +103,7 @@ type Point = (Int, Int)
 
 edgeValue = 100
 
-pulsateValue = 100
+pulsateValue = 150
 
 getNeighbouringPoints :: Grid -> Point -> [Point]
 getNeighbouringPoints grid (x, y) =
@@ -115,8 +125,8 @@ getNeighbouringPoints grid (x, y) =
         (\(x, y) -> x > -1 && x < colCount && y > -1 && y < rowCount)
         points
 
-getFlashingPoints :: Grid -> [Point]
-getFlashingPoints grid =
+getPulsatingPoints :: Grid -> [Point]
+getPulsatingPoints grid =
   let colCount = length $ M.keys grid
       colRange = [0 .. colCount - 1]
       rowCount =
@@ -130,15 +140,15 @@ getFlashingPoints grid =
           (\x ->
              map
                (\y ->
-                  if isFlashingPoint grid (x, y)
+                  if isPulsatingPoint grid (x, y)
                     then (x, y)
                     else (-1, -1))
                rowRange)
           colRange
    in points
 
-isFlashingPoint :: Grid -> Point -> Bool
-isFlashingPoint grid (x, y)
+isPulsatingPoint :: Grid -> Point -> Bool
+isPulsatingPoint grid (x, y)
     -- checks if we have lower value than all 4 cells around us.
  =
   case M.lookup x grid of
