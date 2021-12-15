@@ -34,7 +34,7 @@ main
 
 ex1 :: [[Char]] -> Int
 ex1 input =
-  foldl (\score val -> score + (getScore val calculateSyntaxScore)) 0 $
+  foldl (\score val -> score + getScore val calculateSyntaxScore) 0 $
   lefts $ map parseLine input
 
 -- Using foldM to chain the result from the previous parse result to the next
@@ -53,14 +53,14 @@ parse parsed nextChar
       then Right $ init parsed
       else Left nextChar
 
--- calculates score for the autocomplete tooling
+--- calculates score for the autocomplete tooling
 ex2 :: [[Char]] -> Int
-ex2 input = getMiddle $ sort $ map scoreStrings $ rights $ map parseLine input
+ex2 = getMiddle . sort . map (scoreStrings . complete) . rights . map parseLine
   where
     scoreStrings :: [Char] -> Int
     scoreStrings =
       foldl
-        (\result char -> 5 * result + (getScore char calculateAutocompleteScore))
+        (\result char -> 5 * result + getScore char calculateAutocompleteScore)
         0
 
 -- Function which takes a char and a function which maps a char to a value. Used
@@ -111,7 +111,7 @@ getMatchingTag tag
   | otherwise = error $ "no matching tag was found! Tag given: " ++ [tag]
 
 isClosingTag :: Char -> Bool
-isClosingTag char = any (== char) [')', ']', '}', '>']
+isClosingTag char = char `elem` [')', ']', '}', '>']
 
 isOpeningTag :: Char -> Bool
-isOpeningTag char = any (== char) ['(', '[', '{', '<']
+isOpeningTag char = char `elem` ['(', '[', '{', '<']
