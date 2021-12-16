@@ -48,16 +48,30 @@ iterations = 2
 ex1 input =
   let grid = getGrid input
    -- in pulsate grid []
-   in pulsate grid
+   -- in pulsate grid 1
+   in pulsate grid steps 0
 
-increaseValues :: Grid -> [Point] -> Grid
-increaseValues =
-  foldl
-    (\grid point -> insertValue grid point (increaseValue $ getValue grid point))
+operateOnGrid :: Grid -> (Int -> Int) -> Grid
+operateOnGrid grid f =
+  let rows = M.keys grid
+   in M.foldlWithKey
+        (\rowMap row colMap ->
+           M.insert
+             row
+             (M.foldlWithKey
+                (\colMap col val -> M.insert col (f val) colMap)
+                M.empty
+                colMap)
+             rowMap)
+        M.empty
+        grid
+  where
+    doStuff acc k v = acc
 
 resetPulsatedValues :: Grid -> [Point] -> Grid
 resetPulsatedValues = foldl (\grid point -> insertValue grid point 0)
 
+-- TODO(pierre): make more flexible and pass predicate.
 getPulsatedValues :: Grid -> [Point]
 getPulsatedValues grid =
   let colCount = length $ M.keys grid
@@ -73,26 +87,48 @@ getPulsatedValues grid =
           (\x ->
              map
                (\y ->
-                  if getValue grid (x, y) == pulsateValue
+                  if getValue grid (x, y) > 9 &&
+                     getValue grid (x, y) /= edgeValue
                     then (x, y)
                     else (-1, -1))
                rowRange)
           colRange
    in points
 
--- recursively gets flashing points until the amount of new flashing points is
--- zero.
+steps = 1
+
+-- recursively gets pulsating points until the amount of new pulsating points is
+-- zero. Then resets the values of pulsating points to zero and returns the new
+-- grid.
 -- getAllPulsatingPoints :: Grid -> [Point] -> [Point]
-pulsate grid =
-  let pulsatingPoints = getPulsatingPoints grid
-   in if null pulsatingPoints
-        then grid
-        -- TODO: get all pulsating points and all neighbours. Then increase all
-        -- these points.
-        else pulsate (increaseValues grid pulsatingPoints)
+pulsate grid steps count =
+  let increasedGrid = operateOnGrid grid increaseValue
+      pulsatedPoints = getPulsatedValues increasedGrid
+   in if steps == 0
+        -- then count
+        then pulsatedPoints
+        -- Gets all neighbours of pulsated points.
+        else let neighbours =
+                   nub $ concatMap (getNeighbouringPoints grid) pulsatedPoints
+                 -- increases all neighbours
+                 increasedGrid2 =
+                   operateOnPoints increasedGrid neighbours increaseValue
+                 -- step finished, reset energy level for pulsated values
+                 resetGrid =
+                   operateOnPoints increasedGrid2 pulsatedPoints resetValue
+              in pulsate resetGrid (steps - 1) $ count + (length pulsatedPoints)
+  where
+    resetValue x = 0
+
+-- pulsate (increaseValues grid pulsatingPoints)
+operateOnPoints :: Grid -> [Point] -> (Int -> Int) -> Grid
+operateOnPoints grid points f =
+  foldl
+    (\grid point -> insertValue grid point (f $ getValue grid point))
+    grid
+    points
 
 increaseValue value
-  | value == pulsateValue || value == 9 = pulsateValue
   | value == edgeValue = edgeValue
   | otherwise = value + 1
 
@@ -101,9 +137,13 @@ type Grid = Map Int (Map Int Int)
 
 type Point = (Int, Int)
 
-edgeValue = 100
+edgeValue = 255
 
-pulsateValue = 150
+pulsatedValue = 150
+
+pulsatingValue = 9
+
+stepsEx1 = 100
 
 getNeighbouringPoints :: Grid -> Point -> [Point]
 getNeighbouringPoints grid (x, y) =
@@ -125,28 +165,6 @@ getNeighbouringPoints grid (x, y) =
         (\(x, y) -> x > -1 && x < colCount && y > -1 && y < rowCount)
         points
 
-getPulsatingPoints :: Grid -> [Point]
-getPulsatingPoints grid =
-  let colCount = length $ M.keys grid
-      colRange = [0 .. colCount - 1]
-      rowCount =
-        case M.lookup 0 grid of
-          Just col -> length $ M.keys col
-          Nothing -> error "could not get colCount at getLowPoints."
-      rowRange = [0 .. rowCount - 1]
-      points =
-        filter (\tuple -> fst tuple /= -1) $
-        concatMap
-          (\x ->
-             map
-               (\y ->
-                  if isPulsatingPoint grid (x, y)
-                    then (x, y)
-                    else (-1, -1))
-               rowRange)
-          colRange
-   in points
-
 isPulsatingPoint :: Grid -> Point -> Bool
 isPulsatingPoint grid (x, y)
     -- checks if we have lower value than all 4 cells around us.
@@ -154,7 +172,7 @@ isPulsatingPoint grid (x, y)
   case M.lookup x grid of
     Just col ->
       case M.lookup y col of
-        Just val -> val == 9
+        Just val -> val == pulsatingValue
 
 insertValue :: Grid -> Point -> Int -> Grid
 insertValue grid (x, y) val =
