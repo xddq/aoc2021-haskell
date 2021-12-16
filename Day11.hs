@@ -20,7 +20,7 @@ Example data:
     61116
     51115
     45654
-    - if 9 is reached in any step, increase value for each adjacent (horizontal,
+    - if >9 is reached in any step, increase value for each adjacent (horizontal,
 vertical, diagonal)
     - values can be increased up to 9 times per step
     - point can only flash ones per step.
@@ -42,12 +42,12 @@ main
   print $ ex2 input
   return ()
 
-ex1 :: [[Char]] -> Int
+ex1 :: [[Char]] -> Count
 ex1 input =
   let grid = getGrid input
    in pulsate grid 100 0
 
-ex2 :: [[Char]] -> Int
+ex2 :: [[Char]] -> Count
 ex2 input =
   let grid = getGrid input
    in case pulsate2 grid 0 0 500 of
@@ -63,9 +63,15 @@ allZero grid =
           Nothing -> error "could not get colCount at allZero."
    in rowCount * colCount == (length $ getValuesFromGrid grid (== 0))
 
+type Limit = Int
+
+type Count = Int
+
+type Steps = Int
+
 -- similar to pulsate. But stops after the result of pulsating is a grid full of
 -- zeros (all pulsated) and returns the step count.
-pulsate2 :: Grid -> Int -> Int -> Int -> Maybe Int
+pulsate2 :: Grid -> Steps -> Count -> Limit -> Maybe Steps
 pulsate2 grid steps count limit
   | allZero grid = Just steps
   | steps == limit = Nothing
@@ -88,7 +94,7 @@ pulsate2 grid steps count limit
     didPulsate val = val >= pulsatedMarker && val < 0
 
 -- pulsates for a given amount of steps. returns the total count of pulsations.
-pulsate :: Grid -> Int -> Int -> Int
+pulsate :: Grid -> Steps -> Count -> Count
 pulsate grid steps count
   | steps == 0 = count
   | otherwise =
