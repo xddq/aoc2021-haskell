@@ -37,20 +37,75 @@ import Data.List
 main
   -- input <- lines <$> readFile "testInput"
  = do
-  input <- lines <$> readFile "testInput"
+  input <- lines <$> readFile "inputDay11"
   print $ ex1 input
-  -- print $ ex2 input
+  print $ ex2 input
   return ()
 
-iterations = 2
-
--- ex1 :: [[Char]] -> Int
+ex1 :: [[Char]] -> Int
 ex1 input =
   let grid = getGrid input
-   -- in pulsate grid []
-   -- in pulsate grid 1
-   in pulsate grid steps 0
+   in pulsate grid 100 0
 
+ex2 :: [[Char]] -> Int
+ex2 input =
+  let grid = getGrid input
+   in case pulsate2 grid 0 0 500 of
+        Nothing -> error "did not find a step where all pulsated!"
+        Just step -> step
+
+allZero :: Grid -> Bool
+allZero grid =
+  let rowCount = length $ M.keys grid
+      colCount =
+        case M.lookup 0 grid of
+          Just row -> length $ M.keys row
+          Nothing -> error "could not get colCount at allZero."
+   in rowCount * colCount == (length $ getValuesFromGrid grid (== 0))
+
+-- similar to pulsate. But stops after the result of pulsating is a grid full of
+-- zeros (all pulsated) and returns the step count.
+pulsate2 :: Grid -> Int -> Int -> Int -> Maybe Int
+pulsate2 grid steps count limit
+  | allZero grid = Just steps
+  | steps == limit = Nothing
+  | otherwise =
+    let pulsatedGrid = doPulsate $ operateOnGrid grid (+ 1)
+        countPulsated = length $ getValuesFromGrid pulsatedGrid (didPulsate)
+     in pulsate2
+          (resetPulsated pulsatedGrid)
+          (steps + 1)
+          (count + countPulsated)
+          limit
+  where
+    resetPulsated grid =
+      operateOnGrid
+        grid
+        (\x ->
+           if didPulsate x
+             then 0
+             else x)
+    didPulsate val = val >= pulsatedMarker && val < 0
+
+-- pulsates for a given amount of steps. returns the total count of pulsations.
+pulsate :: Grid -> Int -> Int -> Int
+pulsate grid steps count
+  | steps == 0 = count
+  | otherwise =
+    let pulsatedGrid = doPulsate $ operateOnGrid grid (+ 1)
+        countPulsated = length $ getValuesFromGrid pulsatedGrid (didPulsate)
+     in pulsate (resetPulsated pulsatedGrid) (steps - 1) (count + countPulsated)
+  where
+    resetPulsated grid =
+      operateOnGrid
+        grid
+        (\x ->
+           if didPulsate x
+             then 0
+             else x)
+    didPulsate val = val >= pulsatedMarker && val < 0
+
+-- applies given function to every value in grid.
 operateOnGrid :: Grid -> (Int -> Int) -> Grid
 operateOnGrid grid f =
   let rows = M.keys grid
@@ -65,15 +120,33 @@ operateOnGrid grid f =
              rowMap)
         M.empty
         grid
-  where
-    doStuff acc k v = acc
 
-resetPulsatedValues :: Grid -> [Point] -> Grid
-resetPulsatedValues = foldl (\grid point -> insertValue grid point 0)
+-- pulsates for all points inside the grid
+doPulsate :: Grid -> Grid
+doPulsate grid =
+  let next = getNextPulsatedPoint grid
+   in case next of
+        Just point ->
+          let newGrid =
+                operateOnPoints
+                  (insertValue grid point pulsatedMarker)
+                  (getNeighbouringPoints grid point)
+                  (+ 1)
+           in doPulsate newGrid
+        Nothing -> grid
 
--- TODO(pierre): make more flexible and pass predicate.
-getPulsatedValues :: Grid -> [Point]
-getPulsatedValues grid =
+-- MAYBE(pierre): Adapt to only find the next one instead of all and get the
+-- head. Could do after solution works.
+getNextPulsatedPoint :: Grid -> Maybe Point
+getNextPulsatedPoint grid = do
+  let next = getValuesFromGrid grid (> 9)
+  case length next of
+    0 -> Nothing
+    _ -> Just (head next)
+
+-- gets all values from the grid for which the predicate is True
+getValuesFromGrid :: Grid -> (Int -> Bool) -> [Point]
+getValuesFromGrid grid f =
   let colCount = length $ M.keys grid
       colRange = [0 .. colCount - 1]
       rowCount =
@@ -87,40 +160,14 @@ getPulsatedValues grid =
           (\x ->
              map
                (\y ->
-                  if getValue grid (x, y) > 9 &&
-                     getValue grid (x, y) /= edgeValue
+                  if f $ getValue grid (x, y)
                     then (x, y)
                     else (-1, -1))
                rowRange)
           colRange
    in points
 
-steps = 1
-
--- recursively gets pulsating points until the amount of new pulsating points is
--- zero. Then resets the values of pulsating points to zero and returns the new
--- grid.
--- getAllPulsatingPoints :: Grid -> [Point] -> [Point]
-pulsate grid steps count =
-  let increasedGrid = operateOnGrid grid increaseValue
-      pulsatedPoints = getPulsatedValues increasedGrid
-   in if steps == 0
-        -- then count
-        then pulsatedPoints
-        -- Gets all neighbours of pulsated points.
-        else let neighbours =
-                   nub $ concatMap (getNeighbouringPoints grid) pulsatedPoints
-                 -- increases all neighbours
-                 increasedGrid2 =
-                   operateOnPoints increasedGrid neighbours increaseValue
-                 -- step finished, reset energy level for pulsated values
-                 resetGrid =
-                   operateOnPoints increasedGrid2 pulsatedPoints resetValue
-              in pulsate resetGrid (steps - 1) $ count + (length pulsatedPoints)
-  where
-    resetValue x = 0
-
--- pulsate (increaseValues grid pulsatingPoints)
+-- applies function to all given points in a grid
 operateOnPoints :: Grid -> [Point] -> (Int -> Int) -> Grid
 operateOnPoints grid points f =
   foldl
@@ -128,22 +175,12 @@ operateOnPoints grid points f =
     grid
     points
 
-increaseValue value
-  | value == edgeValue = edgeValue
-  | otherwise = value + 1
-
 -- mostly reused stuff from Day9. Adapted here and there.
 type Grid = Map Int (Map Int Int)
 
 type Point = (Int, Int)
 
-edgeValue = 255
-
-pulsatedValue = 150
-
-pulsatingValue = 9
-
-stepsEx1 = 100
+pulsatedMarker = -127
 
 getNeighbouringPoints :: Grid -> Point -> [Point]
 getNeighbouringPoints grid (x, y) =
@@ -165,15 +202,6 @@ getNeighbouringPoints grid (x, y) =
         (\(x, y) -> x > -1 && x < colCount && y > -1 && y < rowCount)
         points
 
-isPulsatingPoint :: Grid -> Point -> Bool
-isPulsatingPoint grid (x, y)
-    -- checks if we have lower value than all 4 cells around us.
- =
-  case M.lookup x grid of
-    Just col ->
-      case M.lookup y col of
-        Just val -> val == pulsatingValue
-
 insertValue :: Grid -> Point -> Int -> Grid
 insertValue grid (x, y) val =
   let innerMap = M.lookup x grid
@@ -184,14 +212,17 @@ insertValue grid (x, y) val =
 
 -- gets value for an entry in our grid/map of maps. If we are looking outside of
 -- our grid, return the edge value.
+-- MAYBE(pierre): adapt to return Maybe instead of fixed int val in nothing
+-- case.
 getValue :: Grid -> Point -> Int
 getValue grid (x, y) =
   case M.lookup x grid of
     Just col ->
       case M.lookup y col of
         Just val -> val
-        Nothing -> edgeValue
-    Nothing -> edgeValue
+        Nothing ->
+          error "this should not happen. Got value that was not in grid."
+    Nothing -> error "this should not happen. Got value that was not in grid."
 
 -- Builds a grid consisting of a Map of Maps. Using this we can lookup the
 -- values with a given x and y value.
