@@ -12,7 +12,7 @@ import Data.Char
 main
   -- input <- lines <$> readFile "inputDay11"
  = do
-  input <- lines <$> readFile "testInput"
+  input <- lines <$> readFile "inputDay12"
   print $ ex1 input
   -- print $ ex2 input
   return ()
@@ -21,10 +21,15 @@ type Node = [Char]
 
 type Path = [Node]
 
+type Count = Int
+
 type EdgeMap = Map Node [Node]
 
-ex1 :: [[Char]] -> [Path]
-ex1 input = walk "start" [[]] $ mkEdgeMap input
+ex1 :: [[Char]] -> Count
+ex1 input =
+  length $
+  map (tail . reverse) $
+  filter (not . null) $ walk "start" [[]] $ mkEdgeMap input
   where
     mkEdgeMap :: [[Char]] -> EdgeMap
     mkEdgeMap input
@@ -32,10 +37,16 @@ ex1 input = walk "start" [[]] $ mkEdgeMap input
           -- y will be an edge with x being the start and y the end node.
      =
       let edges = map (splitOn "-") input
-            -- creates Map of edges consisting of the individual nodes as keys and
-            -- all the nodes their are connected with as values.
-       in M.fromListWith (++) $ [(head edge, tail edge) | edge <- edges]
+            -- Creates bidirectional Map of edges consisting of the individual
+            -- nodes as keys and all the nodes they are connected with as
+            -- values.
+       in M.fromListWith (++) $
+          concat $
+          [ [(head edge, tail edge), (head $ tail edge, [head edge])]
+          | edge <- edges
+          ]
 
+-- ex1 input = mkEdgeMap input
 endNode = "end"
 
 startNode = "start"
@@ -46,7 +57,7 @@ emptyPath = []
 walk :: Node -> Path -> Map Node [Node] -> [Path]
 walk node visited edgeMap =
   if node == endNode
-    then [visited]
+    then [node : visited]
     else case useNode node visited of
            True ->
              case M.lookup node edgeMap of
