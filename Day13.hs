@@ -1,18 +1,16 @@
 {-|
 Example data:
 -}
-import Data.List (foldl')
+import Data.List (foldl', transpose)
 import Data.List.Split (splitOn)
 
 import Data.Map (Map)
 import qualified Data.Map as M
 
-main
-  -- input <- lines <$> readFile "inputDay11"
- = do
+main = do
   input <- lines <$> readFile "inputDay13"
   print $ ex1 input
-  print $ ex2 input
+  printMapOfMaps $ ex2 input
   return ()
 
 type Pos = Int
@@ -40,10 +38,50 @@ ex2 input =
       dotMap =
         mkDotMap $ [(x, y) | dot <- dots, (x, y) <- [mkDot $ splitOn "," dot]]
       instructions = map parseInstruction instructionsString
-   in foldl' foldPaper dotMap instructions
+   in fillZeros $ foldl' foldPaper dotMap instructions
 
--- TODO(pierre): print the grid to see letters?
---
+printMapOfMaps :: Map Int (Map Int Int) -> IO ()
+printMapOfMaps dots =
+  mapM_ print $
+  transpose $
+  map snd $ M.toList $ M.map (\innerMap -> map snd $ M.toList innerMap) dots
+
+-- adds zeros to a given map of maps. Prepares data for pretty printing to get
+-- the code (our solution).
+fillZeros :: Map Int (Map Int Int) -> Map Int (Map Int Int)
+fillZeros mapOfMaps
+  -- Fills all given inner maps with zeros if the value for the given index did
+  -- not exist.
+ =
+  M.map
+    (\innerMap ->
+       foldl'
+         (\acc key ->
+            M.insertWith
+              (\givenInput currentVal ->
+                 if currentVal == 1
+                   then currentVal
+                   else givenInput)
+              key
+              0
+              acc)
+         innerMap
+         [0 .. 5]) $
+  -- Adds an empty map to each key that does not contain a map already.
+  foldl'
+    (\dots key ->
+       M.insertWith
+         (\givenInput currentVal ->
+            if Prelude.null currentVal
+              then givenInput
+              else currentVal)
+         key
+         (M.fromList [])
+         dots)
+    mapOfMaps
+    [0 .. 40]
+
+-- Gets the counts of all elements of a given map of maps.
 mapOfMapsCount :: Map Int (Map Int Int) -> Int
 mapOfMapsCount = M.foldl (\acc innerMap -> acc + M.size innerMap) 0
 
@@ -61,7 +99,7 @@ parseMode input =
       error $
       "This case should not happen. parseMode function got input: " ++ [input]
 
--- folding from right to left(x-wise) and from bottom to top (y-wise)
+-- folding from right to left(for x-axis) and from bottom to top (for y-axis)
 foldPaper :: Dots -> (FoldMode, Pos) -> Dots
 foldPaper dots (mode, foldPos)
   | mode == Vertical
