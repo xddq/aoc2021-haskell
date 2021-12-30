@@ -12,7 +12,7 @@ main
  = do
   input <- lines <$> readFile "inputDay13"
   print $ ex1 input
-  -- print $ ex2 input
+  print $ ex2 input
   return ()
 
 type Pos = Int
@@ -29,11 +29,21 @@ ex1 input =
   let (dots, _:instructionsString) = break (== "") input
       dotMap
       -- TODO(pierre): Why do I need to wrap mkDot $ splitOn ... into []?
+      -- Probably desugar list expression later to understand it.
        = mkDotMap $ [(x, y) | dot <- dots, (x, y) <- [mkDot $ splitOn "," dot]]
       instructions = map parseInstruction instructionsString
    in mapOfMapsCount $ foldPaper dotMap $ head instructions
 
 -- ex2 :: [[Char]] -> Int
+ex2 input =
+  let (dots, _:instructionsString) = break (== "") input
+      dotMap =
+        mkDotMap $ [(x, y) | dot <- dots, (x, y) <- [mkDot $ splitOn "," dot]]
+      instructions = map parseInstruction instructionsString
+   in foldl' foldPaper dotMap instructions
+
+-- TODO(pierre): print the grid to see letters?
+--
 mapOfMapsCount :: Map Int (Map Int Int) -> Int
 mapOfMapsCount = M.foldl (\acc innerMap -> acc + M.size innerMap) 0
 
@@ -51,8 +61,8 @@ parseMode input =
       error $
       "This case should not happen. parseMode function got input: " ++ [input]
 
-foldPaper :: Dots -> (FoldMode, Pos) -> Dots
 -- folding from right to left(x-wise) and from bottom to top (y-wise)
+foldPaper :: Dots -> (FoldMode, Pos) -> Dots
 foldPaper dots (mode, foldPos)
   | mode == Vertical
     -- MAYBE(pierre): have to map over all values multiple times. later find way
