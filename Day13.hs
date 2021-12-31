@@ -32,58 +32,13 @@ ex1 input =
       instructions = map parseInstruction instructionsString
    in mapOfMapsCount $ foldPaper dotMap $ head instructions
 
--- ex2 :: [[Char]] -> Int
+ex2 :: [[Char]] -> Map Int (Map Int Int)
 ex2 input =
   let (dots, _:instructionsString) = break (== "") input
       dotMap =
         mkDotMap $ [(x, y) | dot <- dots, (x, y) <- [mkDot $ splitOn "," dot]]
       instructions = map parseInstruction instructionsString
    in fillZeros $ foldl' foldPaper dotMap instructions
-
-printMapOfMaps :: Map Int (Map Int Int) -> IO ()
-printMapOfMaps dots =
-  mapM_ print $
-  transpose $
-  map snd $ M.toList $ M.map (\innerMap -> map snd $ M.toList innerMap) dots
-
--- adds zeros to a given map of maps. Prepares data for pretty printing to get
--- the code (our solution).
-fillZeros :: Map Int (Map Int Int) -> Map Int (Map Int Int)
-fillZeros mapOfMaps
-  -- Fills all given inner maps with zeros if the value for the given index did
-  -- not exist.
- =
-  M.map
-    (\innerMap ->
-       foldl'
-         (\acc key ->
-            M.insertWith
-              (\givenInput currentVal ->
-                 if currentVal == 1
-                   then currentVal
-                   else givenInput)
-              key
-              0
-              acc)
-         innerMap
-         [0 .. 5]) $
-  -- Adds an empty map to each key that does not contain a map already.
-  foldl'
-    (\dots key ->
-       M.insertWith
-         (\givenInput currentVal ->
-            if Prelude.null currentVal
-              then givenInput
-              else currentVal)
-         key
-         (M.fromList [])
-         dots)
-    mapOfMaps
-    [0 .. 40]
-
--- Gets the counts of all elements of a given map of maps.
-mapOfMapsCount :: Map Int (Map Int Int) -> Int
-mapOfMapsCount = M.foldl (\acc innerMap -> acc + M.size innerMap) 0
 
 parseInstruction :: String -> (FoldMode, Pos)
 parseInstruction instruction =
@@ -95,7 +50,7 @@ parseMode input =
   case input of
     'x' -> Horizontal
     'y' -> Vertical
-    otherwise ->
+    _ ->
       error $
       "This case should not happen. parseMode function got input: " ++ [input]
 
@@ -110,8 +65,7 @@ foldPaper dots (mode, foldPos)
         -- get upper maps (maps/dots above the cut) and lower maps (maps/dots below
         -- the cut)
         -- get upper maps by just taking the upper ones.
-        upperMaps =
-          M.filter (not . null) $ M.map (\(upper, _) -> upper) upperAndLowerMaps
+        upperMaps = M.filter (not . null) $ M.map fst upperAndLowerMaps
         -- get new upper maps by moving the lower keys/dots according to their
         -- position and the folding position.
         newUpperMaps =
@@ -119,7 +73,7 @@ foldPaper dots (mode, foldPos)
           M.map (M.filterWithKey (\k _ -> k /= -10)) $
           M.map (M.mapKeys (adaptPos foldPos)) dots
         -- make union of both maps/dots to mimic overlapping of dots.
-        resultDots = M.unionWith (\x y -> M.union x y) newUpperMaps upperMaps
+        resultDots = M.unionWith M.union newUpperMaps upperMaps
      in resultDots
   | mode == Horizontal =
     let (leftMap, rightMap) = M.split foldPos dots
@@ -129,7 +83,7 @@ foldPaper dots (mode, foldPos)
          -- the folding position.
          = M.mapKeys (adaptPos foldPos) rightMap
         -- make union of both maps/dots to mimic overlapping of dots.
-        resultDots = M.unionWith (\x y -> M.union x y) newLeftMap leftMap
+        resultDots = M.unionWith M.union newLeftMap leftMap
      in resultDots
 
 adaptPos :: Int -> Int -> Int
@@ -153,3 +107,51 @@ addEntry input (x, y) =
   case M.lookup x input of
     Nothing -> M.insert x (M.insert y 1 M.empty) input
     Just yMap -> M.insert x (M.insert y 1 yMap) input
+
+-- transposes and pretty prints map of maps.
+printMapOfMaps :: Map Int (Map Int Int) -> IO ()
+printMapOfMaps dots =
+  mapM_ print $ transpose $ map snd . M.toList $ M.map (map snd . M.toList) dots
+
+-- Gets the counts of all elements of a given map of maps.
+mapOfMapsCount :: Map Int (Map Int Int) -> Int
+mapOfMapsCount = M.foldl (\acc innerMap -> acc + M.size innerMap) 0
+
+-- Adds zeros to a given map of maps. Prepares data for pretty printing to get
+-- the code (our solution).
+fillZeros :: Map Int (Map Int Int) -> Map Int (Map Int Int)
+fillZeros mapOfMaps
+  -- Fills all given inner maps with zeros if the value for the given index did
+  -- not exist.
+ =
+  M.map
+    (\innerMap ->
+       foldl'
+         (\acc key ->
+            M.insertWith
+              (\givenInput currentVal ->
+                 if currentVal == 1
+                   then currentVal
+                   else givenInput)
+              key
+              0
+              acc)
+         innerMap
+         -- NOTE: 0..5 is based on observing the resulting grid when running ex2
+         -- on our input without pretty printing it.
+         [0 .. 5]) $
+  -- Adds an empty map to each key that does not contain a map already.
+  foldl'
+    (\dots key ->
+       M.insertWith
+         (\givenInput currentVal ->
+            if null currentVal
+              then givenInput
+              else currentVal)
+         key
+         M.empty
+         dots)
+    mapOfMaps
+    -- NOTE: 0..40 is based on observing the resulting grid when running ex2
+    -- on our input without pretty printing it.
+    [0 .. 40]
