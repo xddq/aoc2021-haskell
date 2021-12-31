@@ -61,7 +61,7 @@ allZero grid =
         case M.lookup 0 grid of
           Just row -> length $ M.keys row
           Nothing -> error "could not get colCount at allZero."
-   in rowCount * colCount == (length $ getValuesFromGrid grid (== 0))
+   in rowCount * colCount == length (getValuesFromGrid grid (== 0))
 
 type Limit = Int
 
@@ -77,7 +77,7 @@ pulsate2 grid steps count limit
   | steps == limit = Nothing
   | otherwise =
     let pulsatedGrid = doPulsate $ operateOnGrid grid (+ 1)
-        countPulsated = length $ getValuesFromGrid pulsatedGrid (didPulsate)
+        countPulsated = length $ getValuesFromGrid pulsatedGrid didPulsate
      in pulsate2
           (resetPulsated pulsatedGrid)
           (steps + 1)
@@ -99,7 +99,7 @@ pulsate grid steps count
   | steps == 0 = count
   | otherwise =
     let pulsatedGrid = doPulsate $ operateOnGrid grid (+ 1)
-        countPulsated = length $ getValuesFromGrid pulsatedGrid (didPulsate)
+        countPulsated = length $ getValuesFromGrid pulsatedGrid didPulsate
      in pulsate (resetPulsated pulsatedGrid) (steps - 1) (count + countPulsated)
   where
     resetPulsated grid =
@@ -234,13 +234,13 @@ getValue grid (x, y) =
 -- values with a given x and y value.
 getGrid :: [[Char]] -> Grid
 getGrid input =
-  let rows = map (\row -> map digitToInt row) input
+  let rows = map (map digitToInt row) input
       -- transforms input to list of rows with each row having their list of
       -- (key,value).
       colCount = length $ transpose rows
       rowCount = length rows
       resultRows =
-        map (\key -> map (\val -> (key, (val !! key))) rows) [0 .. colCount - 1]
+        map (\key -> map (\val -> (key, val !! key)) rows) [0 .. colCount - 1]
       resultCols = transpose resultRows
       grid =
         foldl
@@ -250,7 +250,7 @@ getGrid input =
                (makeMap $ getKeysAndValues (resultCols !! key))
                newMap)
           M.empty
-          [0 .. (length resultCols) - 1]
+          [0 .. length resultCols - 1]
    in grid
 
 getKeysAndValues :: [Point] -> ([Int], [Int])

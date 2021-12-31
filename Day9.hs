@@ -17,6 +17,8 @@ count as lower).
 import Data.Map (Map)
 import qualified Data.Map as M
 
+import Data.Maybe (fromMaybe)
+
 -- imports only digitToInt from Data.Char
 -- https://wiki.haskell.org/Import
 import Data.Char (digitToInt)
@@ -70,14 +72,11 @@ makeBasin grid visitedPoints =
       filteredNeighbours =
         filter
           (\point ->
-             (getValue grid point) /= noBasinValue &&
-             (getValue grid point) /= edgeValue)
+             getValue grid point /= noBasinValue &&
+             getValue grid point /= edgeValue)
           neighbours
       -- only use points that are not already inside our basin
-      allowedNeighbours =
-        filter
-          (\neighbour -> not $ neighbour `elem` visitedPoints)
-          filteredNeighbours
+      allowedNeighbours = filter (`notElem` visitedPoints) filteredNeighbours
    in if null allowedNeighbours
         then visitedPoints
         else makeBasin grid (allowedNeighbours ++ visitedPoints)
@@ -123,13 +122,13 @@ isLowPoint grid (x, y)
     Just col ->
       case M.lookup y col of
         Just val ->
-          (all
-             (getValue grid (x, y) <)
-             [ getValue grid (x - 1, y)
-             , getValue grid (x + 1, y)
-             , getValue grid (x, y + 1)
-             , getValue grid (x, y - 1)
-             ])
+          all
+            (getValue grid (x, y) <)
+            [ getValue grid (x - 1, y)
+            , getValue grid (x + 1, y)
+            , getValue grid (x, y + 1)
+            , getValue grid (x, y - 1)
+            ]
 
 insertValue :: Grid -> Point -> Int -> Grid
 insertValue grid (x, y) val =
@@ -144,23 +143,20 @@ insertValue grid (x, y) val =
 getValue :: Grid -> Point -> Int
 getValue grid (x, y) =
   case M.lookup x grid of
-    Just col ->
-      case M.lookup y col of
-        Just val -> val
-        Nothing -> edgeValue
+    Just col -> fromMaybe edgeValue (M.lookup y col)
     Nothing -> edgeValue
 
 -- Builds a grid consisting of a Map of Maps. Using this we can lookup the
 -- values with a given x and y value.
 getGrid :: [[Char]] -> Grid
 getGrid input =
-  let rows = map (\row -> map digitToInt row) input
+  let rows = map (map digitToInt row) input
       -- transforms input to list of rows with each row having their list of
       -- (key,value).
       colCount = length $ transpose rows
       rowCount = length rows
       resultRows =
-        map (\key -> map (\val -> (key, (val !! key))) rows) [0 .. colCount - 1]
+        map (\key -> map (\val -> (key, val !! key)) rows) [0 .. colCount - 1]
       resultCols = transpose resultRows
       grid =
         foldl
@@ -170,7 +166,7 @@ getGrid input =
                (makeMap $ getKeysAndValues (resultCols !! key))
                newMap)
           M.empty
-          [0 .. (length resultCols) - 1]
+          [0 .. length resultCols - 1]
    in grid
 
 getKeysAndValues :: [Point] -> ([Int], [Int])
