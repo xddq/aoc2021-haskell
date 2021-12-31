@@ -52,18 +52,16 @@ emptyPath :: Path
 emptyPath = []
 
 walk :: Node -> Path -> (Node -> Path -> Bool) -> Map Node [Node] -> [Path]
-walk node visited pred edgeMap =
-  if node == endNode
-    then [node : visited]
-    else case pred node visited of
-           True ->
-             case M.lookup node edgeMap of
-               Just stepableNodes ->
-                 concatMap
-                   (\nextNode -> walk nextNode (node : visited) pred edgeMap)
-                   stepableNodes
-               Nothing -> [emptyPath]
-           otherwise -> [emptyPath]
+walk node visited pred edgeMap
+  | node == endNode = [node : visited]
+  | pred node visited =
+    case M.lookup node edgeMap of
+      Just stepableNodes ->
+        concatMap
+          (\nextNode -> walk nextNode (node : visited) pred edgeMap)
+          stepableNodes
+      Nothing -> [emptyPath]
+  | otherwise = [emptyPath]
 
 -- Determines whether we can use this node for walking towards the goal.
 useNode :: Node -> Path -> Bool
@@ -81,18 +79,13 @@ ex2 input =
 useNode2 :: Node -> Path -> Bool
 useNode2 node path
   -- not in path yet
-  | (not $ node `elem` path) = True
+  | node `notElem` path = True
   -- once in path already
+  -- once in path and not start or endnode
+  -- we have a lowercase letter twice in path already
   | otherwise =
-    if node `elem` [startNode, endNode]
-      then False
-      -- once in path and not start or endnode
-      else if all isLower node
-             -- we have a lowercase letter twice in path already
-             then not $ twiceInPath $ filter (all isLower) path
-             else True
-
-twiceInPath path = existsTwice path
+    notElem node [startNode, endNode] &&
+    (not (all isLower node) || not (existsTwice $ filter (all isLower) path))
 
 existsTwice [] = False
 existsTwice (x:xs)
