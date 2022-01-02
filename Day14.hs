@@ -41,7 +41,12 @@ ex1 input =
               in M.insert input output acc)
           M.empty
           sequences
-   in polymerInsertion start polymerMap
+   in length $ runXtimes ((flip polymerInsertion) polymerMap) start 10
+
+-- src for this:
+-- https://stackoverflow.com/questions/7423123/how-to-call-the-same-function-n-times/7423199
+runXtimes :: (a -> a) -> a -> Int -> a
+runXtimes f x times = iterate f x !! times
 
 -- runs one full step of polymerInsertion
 polymerInsertion :: Sequence -> PolymerMap -> Sequence
