@@ -8,11 +8,15 @@
 - every 2 letters count. Example: if we have 3 letters(NCB) that would be 2 base
 pairs(NC;CB) which could result in a new base.
 -}
-import Data.Map (Map)
-import qualified Data.Map as M
+-- MAYBE(pierre): Use hashMap package since order of keys does not matter.
+-- src: https://hackage.haskell.org/package/containers-0.6.5.1/docs/Data-Map-Strict.html#g:9
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
 
-import Data.List (foldl')
+import Data.List (foldl', sortBy)
 import Data.List.Split (splitOn)
+
+import Control.Applicative (liftA2)
 
 type Sequence = [Element]
 
@@ -22,16 +26,20 @@ type PolymerMap = Map Sequence Element
 
 type StepCount = Int
 
-main
-  -- input <- lines <$> readFile "inputDay11"
- = do
-  input <- lines <$> readFile "testInput"
-  print $ ex1 input
-  -- print $ ex2 input
+type Count = Int
+
+data Part
+  = PartOne
+  | PartTwo
+
+main = do
+  input <- lines <$> readFile "inputDay14"
+  print $ ex1 input PartOne
+  print $ ex1 input PartTwo
   return ()
 
 -- ex1 :: [[Char]] -> Int
-ex1 input =
+ex1 input part =
   let ([start], _:sequences) = break (== "") input
   --               -- try to solve with uncurry?
       polymerMap =
@@ -41,7 +49,25 @@ ex1 input =
               in M.insert input output acc)
           M.empty
           sequences
-   in length $ runXtimes ((flip polymerInsertion) polymerMap) start 10
+      -- runs polymerisation, counts occurences of each elements and sorts them
+      -- (lowest first)
+      elementCounts =
+        sortBy (\(_, count1) (_, count2) -> compare count1 count2) $
+        M.toList $
+        (flip countOccurences) M.empty $
+        runXtimes ((flip polymerInsertion) polymerMap) start (getStepCount part)
+   in getDiff $ elementCounts
+  where
+    getStepCount part =
+      case part of
+        PartOne -> 10
+        PartTwo -> 30
+
+-- counts number of occurences for each element in a given sequence.
+countOccurences :: Sequence -> Map Element Count -> Map Element Count
+countOccurences [] countMap = countMap
+countOccurences (x:rest) countMap =
+  countOccurences rest $ M.insertWith (+) x 1 countMap
 
 -- src for this:
 -- https://stackoverflow.com/questions/7423123/how-to-call-the-same-function-n-times/7423199
@@ -61,3 +87,36 @@ mkRule :: [Char] -> (Sequence, Element)
 mkRule input =
   let ((e1:e2):_:e3) = words input
    in (e1 : e2, head $ last e3)
+
+-- NOTE(pierre): keep this stuff around here so I can check back if I run into
+-- this again.
+-- We have to define how we want Int as a Monoid ourselves (Post said since
+-- mappend does not have a 'clear' default implementation. src:
+-- https://stackoverflow.com/questions/29499119/why-int-does-not-implement-monoid/29499203
+-- NOTE(pierre): need to have mappend in semigroup as definition was moved.
+-- src: https://coderedirect.com/questions/392285/a-basic-monoid-definition-gives-no-instance-for-semigroup-mymonoid-arising-fr
+-- TODO(pierre): why is this decided for some typeclasses and left open for
+-- others?)
+instance Monoid Int where
+  mempty = 0
+
+-- mappend is synonym of <>, but <> is required to be defined in semigroup.
+instance Semigroup Int where
+  x <> y = x
+
+instance Monoid Char where
+  mempty = '_'
+
+instance Semigroup Char where
+  x <> y = x
+
+test1 :: (Int, Int) -> (Int, Int) -> (Int, Int)
+test1 x y = (+) <$> x <*> y
+
+test2 :: (Int, Int) -> (Int, Int) -> (Int, Int)
+test2 x y = liftA2 (+) x y
+
+-- gets difference of the count for the first(smalles) and last(biggest) given
+-- element.
+getDiff :: [(Element, Count)] -> Int
+getDiff xs = abs $ snd $ subtract <$> head xs <*> last xs
