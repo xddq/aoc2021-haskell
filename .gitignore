@@ -5,3 +5,6 @@
 Day?
 *.hi
 *.o
+# tried out profiling
+Profile*
+Main*
