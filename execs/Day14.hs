@@ -87,7 +87,10 @@ ex2 input part =
       -- sequence as key and their count as value.
       polymerCounts =
         M.fromListWith (+) $ zipWith (\x y -> ([x, y], 1)) start $ tail start
-   in foldl'
+      firstElem = head start
+   in M.insertWith (+) firstElem 1 $
+      countElements $
+      foldl'
         (\counts _ -> polymerize polymerMappings counts)
         polymerCounts
         [1 .. 10]
@@ -106,8 +109,7 @@ transformSequence mappings (seq, count) =
 countElements :: Map Sequence Count -> Map Element Count
 countElements seqCounts =
   M.foldlWithKey
-    (\elemCounts (e1:e2:_) count ->
-       M.insertWith (+) e2 count $ M.insertWith (+) e1 count elemCounts)
+    (\elemCounts (e1:e2:_) count -> M.insertWith (+) e2 count elemCounts)
     M.empty
     seqCounts
 
