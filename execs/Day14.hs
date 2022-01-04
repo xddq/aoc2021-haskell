@@ -61,7 +61,7 @@ ex2 input part =
         case part of
           PartOne -> 10
           PartTwo -> 40
-   in (\counts -> abs $ (snd $ head counts) - (snd $ last counts)) $
+   in (\counts -> abs $ snd (head counts) - snd (last counts)) $
       sortBy (\(_, count1) (_, count2) -> compare count1 count2) $
       M.toList $
       M.insertWith (+) firstElem 1 $
@@ -97,13 +97,14 @@ transformSequence mappings (seq, count) =
 -- Counts every second element of our sequence (e.g. ("NN",100) will be
 -- ('N',100). Did this because otherwise we would count elements twice.
 countElements :: Map Sequence Count -> Map Element Count
-countElements seqCounts =
+countElements =
   M.foldlWithKey
     (\elemCounts (e1:e2:_) count -> M.insertWith (+) e2 count elemCounts)
     M.empty
-    seqCounts
 
--- NOTE: now unused stuff I did for ex1. Just keep it for reference.
+--
+-- NOTE: the following is now unused stuff I did for ex1. Just keep it for reference.
+--
 type PolymerMap = Map Sequence Element
 
 ex1 :: [[Char]] -> Part -> Int
@@ -121,9 +122,9 @@ ex1 input part =
       elementCounts =
         sortBy (\(_, count1) (_, count2) -> compare count1 count2) $
         M.toList $
-        (flip countOccurences) M.empty $
-        runXtimes ((flip polymerInsertion) polymerMap) start (getStepCount part)
-   in getDiff $ elementCounts
+        countOccurences M.empty $
+        runXtimes (`polymerInsertion` polymerMap) start (getStepCount part)
+   in getDiff elementCounts
   where
     getStepCount part =
       case part of
@@ -132,10 +133,8 @@ ex1 input part =
         PartTwo -> 40
 
 -- counts number of occurences for each element in a given sequence.
-countOccurences :: Sequence -> Map Element Count -> Map Element Count
-countOccurences [] countMap = countMap
-countOccurences (x:rest) countMap =
-  countOccurences rest $ M.insertWith (+) x 1 countMap
+countOccurences :: Map Element Count -> Sequence -> Map Element Count
+countOccurences = foldl (\countMap x -> M.insertWith (+) x 1 countMap)
 
 -- src for this:
 -- https://stackoverflow.com/questions/7423123/how-to-call-the-same-function-n-times/7423199
@@ -144,7 +143,7 @@ runXtimes f x times = iterate f x !! times
 
 -- runs one full step of polymerInsertion
 polymerInsertion :: Sequence -> PolymerMap -> Sequence
-polymerInsertion (x:[]) _ = [x]
+polymerInsertion [x] _ = [x]
 polymerInsertion (x:y:rest) zs =
   case M.lookup [x, y] zs of
     Just elem -> x : elem : polymerInsertion (y : rest) zs
@@ -176,7 +175,7 @@ test1 :: (Int, Int) -> (Int, Int) -> (Int, Int)
 test1 x y = (+) <$> x <*> y
 
 test2 :: (Int, Int) -> (Int, Int) -> (Int, Int)
-test2 x y = liftA2 (+) x y
+test2 = liftA2 (+)
 
 -- gets difference of the count for the first(smalles) and last(biggest) given
 -- element.
