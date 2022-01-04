@@ -5,6 +5,7 @@
 Day?
 *.hi
 *.o
-# tried out profiling
-Profile*
-Main*
+# tried out profiling, ignore .prof files.
+*.prof
+# ignore built stuff
+dist-newstyle/*
