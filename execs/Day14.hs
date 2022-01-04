@@ -38,15 +38,15 @@ data Part
 
 main :: IO ()
 main = do
-  input <- lines <$> readFile "./inputs/inputDay14"
+  input <- lines <$> readFile "./inputs/testInput"
   print $ ex1 input PartOne
-  print $ ex1 input PartTwo
+  print $ ex2 input PartOne
   return ()
 
--- ex1 :: [[Char]] -> Int
+-- ex1 :: [[Char]] -> Part -> Int
 ex1 input part =
   let ([start], _:sequences) = break (== "") input
-  --               -- try to solve with uncurry?
+      -- try to solve with uncurry?
       polymerMap =
         foldl'
           (\acc x ->
@@ -61,6 +61,7 @@ ex1 input part =
         M.toList $
         (flip countOccurences) M.empty $
         runXtimes ((flip polymerInsertion) polymerMap) start (getStepCount part)
+   -- in getDiff $ elementCounts
    in getDiff $ elementCounts
   where
     getStepCount part =
@@ -68,6 +69,72 @@ ex1 input part =
         PartOne -> 10
         PartTwo -> 15
 
+-- for ex2 we need better management of our data structure. use map with keys
+-- being all base pairs we have and the values of the keys the amount of these
+-- base pairs we currently have.
+-- ex2 :: [[Char]] -> Part -> Int
+ex2 input part =
+  let ([start], _:sequences) = break (== "") input
+      -- try to solve with uncurry?
+      polymerMappings =
+        foldl'
+          (\acc x ->
+             let (input, output) = mkRule x
+              in M.insert input output acc)
+          M.empty
+          sequences
+      -- Parses starting sequence (e.g. "NNCB") into a map with each unique
+      -- sequence as key and their count as value.
+      polymerCounts =
+        M.fromListWith (+) $ zipWith (\x y -> ([x, y], 1)) start $ tail start
+   in foldl'
+        (\counts _ -> polymerize polymerMappings counts)
+        polymerCounts
+        [1 .. 10]
+
+polymerize :: Map Sequence Element -> Map Sequence Count -> Map Sequence Count
+polymerize mappings counts =
+  M.fromListWith (+) $ concatMap (transformSequence mappings) $ M.toList counts
+
+transformSequence ::
+     Map Sequence Element -> (Sequence, Count) -> [(Sequence, Count)]
+transformSequence mappings (seq, count) =
+  case M.lookup seq mappings of
+    Just val -> [(head seq : [val], count), (val : tail seq, count)]
+    Nothing -> [(seq, count)]
+
+countElements :: Map Sequence Count -> Map Element Count
+countElements seqCounts =
+  M.foldlWithKey
+    (\elemCounts (e1:e2:_) count ->
+       M.insertWith (+) e2 count $ M.insertWith (+) e1 count elemCounts)
+    M.empty
+    seqCounts
+
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
+--
 -- counts number of occurences for each element in a given sequence.
 countOccurences :: Sequence -> Map Element Count -> Map Element Count
 countOccurences [] countMap = countMap
