@@ -234,7 +234,7 @@ getValue grid (x, y) =
 -- values with a given x and y value.
 getGrid :: [[Char]] -> Grid
 getGrid input =
-  let rows = map (map digitToInt row) input
+  let rows = map (map digitToInt) input
       -- transforms input to list of rows with each row having their list of
       -- (key,value).
       colCount = length $ transpose rows

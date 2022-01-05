@@ -12,7 +12,7 @@ version:            0.1.0.0
 -- bug-reports:
 
 -- The license under which the package is released.
--- license:
+license:            MIT
 author:             git@pierrefhapp.dev
 maintainer:         git@pierrefhapp.dev
 
@@ -23,15 +23,68 @@ extra-source-files:
     CHANGELOG.md
     README.md
 
--- defining stub which can be reused for different executables or libraries.
+-- Defining stub which can be reused for different executables or libraries.
 -- learning from this aoc repo:
 -- https://github.com/glguy/advent2021/blob/main/advent2021.cabal
 common day
   hs-source-dirs:      execs
-  build-depends:       base
+  build-depends:       base, containers, split
   default-language:    Haskell2010
+
+executable Day1
+    import: day
+    main-is: Day1.hs
+
+executable Day2
+    import: day
+    main-is: Day2.hs
+
+executable Day3
+    import: day
+    main-is: Day3.hs
+
+executable Day4
+    import: day
+    main-is: Day4.hs
+
+executable Day5
+    import: day
+    main-is: Day5.hs
+
+executable Day6
+    import: day
+    main-is: Day6.hs
+    build-depends: ilist
+
+executable Day7
+    import: day
+    main-is: Day7.hs
+
+executable Day8
+    import: day
+    main-is: Day8.hs
+
+executable Day9
+    import: day
+    main-is: Day9.hs
+
+executable Day10
+    import: day
+    main-is: Day10.hs
+    build-depends: mtl
+
+executable Day11
+    import: day
+    main-is: Day11.hs
+
+executable Day12
+    import: day
+    main-is: Day12.hs
+
+executable Day13
+    import: day
+    main-is: Day13.hs
 
 executable Day14
     import: day
     main-is: Day14.hs
-    build-depends: containers, split
